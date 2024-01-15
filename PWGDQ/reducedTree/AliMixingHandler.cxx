@@ -452,7 +452,6 @@ void AliMixingHandler::RunEventMixing(TClonesArray* leg1Pool, TClonesArray* leg2
   //
   Int_t entries = leg1Pool->GetEntries();
   if(entries<2) return;
-  
   TObjArray* histClassArr = fHistClassNames.Tokenize(";");
   
   TIter iterEv1Leg1Pool(leg1Pool);

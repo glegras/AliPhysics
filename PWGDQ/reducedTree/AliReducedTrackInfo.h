@@ -198,6 +198,7 @@ class AliReducedTrackInfo : public AliReducedBaseTrack {
   Int_t    fHFProc;             // Heavy Flavour Process number in the event for the particle  
   Short_t fMCGeneratorIndex;    // generator index (used for cocktail generators ?)
 
+
   AliReducedTrackInfo& operator= (const AliReducedTrackInfo &c);
   
   ClassDef(AliReducedTrackInfo, 11);

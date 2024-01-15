@@ -33,8 +33,10 @@ class AliReducedBaseTrack : public TObject {
     Bool_t  TestFlag(UShort_t iflag)       const {return ((iflag<(8*sizeof(ULong_t))) ? fFlags&(ULong_t(1)<<iflag) : kFALSE);} 
     ULong_t GetFlags()                     const {return fFlags;}
     Int_t  Charge()                        const {return fCharge;} 
-    Bool_t IsCartesian() const {return fIsCartesian;}           
-    
+    Bool_t IsCartesian() const {return fIsCartesian;}  
+       
+    ULong_t GetMultFlags()                const {return fMultFlags;}
+    Bool_t TestMultFlag(UShort_t iflag)  const {return ((iflag<(8*sizeof(ULong_t))) ? fMultFlags&(UInt_t(1)<<iflag) : kFALSE);}    
     ULong_t GetQualityFlags()             const {return fQualityFlags;}
     UInt_t  GetFirstHalfOfQualityFlags() const;
     UInt_t  GetSecondHalfOfQualityFlags() const;
@@ -73,6 +75,10 @@ class AliReducedBaseTrack : public TObject {
     void   SetFlags(ULong_t flags) {fFlags=flags;}
     Bool_t SetFlag(UShort_t iflag)  {if(iflag>=8*sizeof(ULong_t)) return kFALSE; fFlags|=(ULong_t(1)<<iflag); return kTRUE;}
     Bool_t UnsetFlag(UShort_t iflag) {if(iflag>=8*sizeof(ULong_t)) return kFALSE; if(TestFlag(iflag)) fFlags^=(ULong_t(1)<<iflag); return kTRUE;}
+    void   ResetMultFlags() {fMultFlags=0;}
+    void   SetMultFlags(ULong_t flags) {fMultFlags=flags;}
+    Bool_t SetMultFlag(UShort_t iflag)  {if(iflag>=8*sizeof(UInt_t)) return kFALSE; fMultFlags|=(UInt_t(1)<<iflag); return kTRUE;}
+    Bool_t UnsetMultFlag(UShort_t iflag) {if(iflag>=8*sizeof(UInt_t)) return kFALSE; if(TestMultFlag(iflag)) fMultFlags^=(UInt_t(1)<<iflag); return kTRUE;}
     void   ResetQualityFlags() {fQualityFlags=0;}
     void   SetQualityFlags(ULong_t flags) {fQualityFlags=flags;}
     Bool_t SetQualityFlag(UShort_t iflag)      {if (iflag>=8*sizeof(ULong_t)) return kFALSE; fQualityFlags|=(ULong_t(1)<<iflag); return kTRUE;}
@@ -88,6 +94,7 @@ class AliReducedBaseTrack : public TObject {
     Bool_t  fIsCartesian;  // if false then the 3-momentum vector is in spherical coordinates (pt,phi,eta)
     Char_t  fCharge;       // electrical charge
     ULong_t fFlags;        // flags reserved for various operations
+    UInt_t fMultFlags;     // flags if track selected for multiplicity estimator
     ULong_t fQualityFlags;          // BIT0 toggled if track used for TPC event plane
                                                    // BIT1 toggled if track belongs to a gamma conversion
                                                    // BIT2 toggled if track belongs to a K0s
@@ -118,7 +125,7 @@ class AliReducedBaseTrack : public TObject {
         
     AliReducedBaseTrack& operator= (const AliReducedBaseTrack &c);
     
-    ClassDef(AliReducedBaseTrack, 6)
+    ClassDef(AliReducedBaseTrack, 7)
 };
 
 //_______________________________________________________________________________
@@ -156,7 +163,7 @@ inline Float_t AliReducedBaseTrack::Eta() const {
   if(eta>1.0e-6) 
     return -1.0*TMath::Log(eta);
   else 
-    return 0.0;
+    return 1e3;
 }
 
 //_______________________________________________________________________________
@@ -166,9 +173,9 @@ inline Float_t AliReducedBaseTrack::Rapidity(Float_t massAssumption) const {
   //
   Float_t e = Energy(massAssumption);
   Float_t factor = e-Pz();
-  if(TMath::Abs(factor)<1.0e-6) return 0.0;
+  if(TMath::Abs(factor)<1.0e-6) return 1e3;
   factor = (e+Pz())/factor;
-  if(factor<1.0e-6) return 0.0;
+  if(factor<1.0e-6) return -1e3;
   return 0.5*TMath::Log(factor);
 }
 

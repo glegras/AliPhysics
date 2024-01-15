@@ -269,7 +269,7 @@ Bool_t AliReducedVarCut::IsSelected(TObject* obj) {
 Bool_t AliReducedVarCut::IsSelected(Float_t* values) {
    //
    // apply cuts
-   //         
+   //  
    for(Int_t i=0; i<fNCuts; ++i) {
       //cout << "AliReducedVarCut::IsSelected() icut " << i << endl;
       if(fCutHasDependentVariable[i]) {
@@ -298,7 +298,7 @@ Bool_t AliReducedVarCut::IsSelected(Float_t* values) {
          fCutLow[i] = fFuncCutLow[i]->Eval(values[fDependentVariable[i]]);
          //cout << "Func low cut depVar/cutVal :: " << values[fDependentVariable[i]] << " / " << fCutLow[i] << endl;
       }
-      if(fFuncCutHigh[i]) fCutHigh[i] = fFuncCutHigh[i]->Eval(values[fDependentVariable[i]]);      
+      if(fFuncCutHigh[i]) fCutHigh[i] = fFuncCutHigh[i]->Eval(values[fDependentVariable[i]]);  
       Bool_t inRange = (values[fCutVariables[i]]>=fCutLow[i] && values[fCutVariables[i]]<=fCutHigh[i]);
       //cout << "AliReducedVarCut::IsSelected() inRange/fCutVariables/val/cutLow/cutHigh: " << inRange << "/" << fCutVariables[i]
       //        << "/" << values[fCutVariables[i]] << "/" << fCutLow[i] << "/" << fCutHigh[i] << "/" << fCutExclude[i] << endl;

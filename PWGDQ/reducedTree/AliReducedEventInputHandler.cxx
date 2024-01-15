@@ -71,8 +71,7 @@ Bool_t AliReducedEventInputHandler::BeginEvent(Long64_t entry)
     if (prevRunNumber != fReducedEvent->RunNo() ) {
       prevRunNumber = fReducedEvent->RunNo();
     } 
-    fTree->GetEvent(entry);
-    
+    fTree->GetTree()->GetEvent(entry);
     // set transient pointer to event inside tracks
     // fEvent->ConnectTracks();
 

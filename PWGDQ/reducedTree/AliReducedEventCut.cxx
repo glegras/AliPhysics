@@ -121,6 +121,5 @@ Bool_t AliReducedEventCut::IsSelected(TObject* obj, Float_t* values) {
       AliReducedEventInfo* eventInfo = (AliReducedEventInfo*)obj;
       if(!(eventInfo->L0TriggerInputs() & fEventL0Mask)) return kFALSE;
    }
-   
    return AliReducedVarCut::IsSelected(values);   
 }

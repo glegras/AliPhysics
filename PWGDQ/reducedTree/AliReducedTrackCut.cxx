@@ -109,8 +109,8 @@ Bool_t AliReducedTrackCut::IsSelected(TObject* obj, Float_t* values) {
    if(!obj->InheritsFrom(AliReducedBaseTrack::Class())) return kFALSE;
 
    // reject pure MC tracks
-   if(fRejectPureMC && ((AliReducedBaseTrack*)obj)->GetMCFlags()) return kFALSE;
-   
+   if(fRejectPureMC && ((AliReducedBaseTrack*)obj)->IsMCTruth()) return kFALSE;
+
    // apply cut on the track quality map (see AliReducedBaseTrack::fQualityFlags for description of the meaning of various bits)
    // NOTE: the track quality filter map is stored in the AliReducedBaseTrack::fQualityFlags starting with bit 0 up to bit 31
    if(fCutOnTrackQualityMap) {

@@ -113,7 +113,7 @@ void AliAnalysisTaskReducedEventProcessor::UserCreateOutputObjects()
      fReducedTask->InitFilteredTree();
      PostData(2, fReducedTask->GetFilteredTree());
   }  
-  
+  cout<<" Initialized! "<<endl;
   return;
 }
 
@@ -122,7 +122,8 @@ void AliAnalysisTaskReducedEventProcessor::UserCreateOutputObjects()
 void AliAnalysisTaskReducedEventProcessor::UserExec(Option_t *){
   //
   // Main loop. Called for every event
-  //   
+  //
+
   AliReducedBaseEvent* event = NULL;
   if(fRunningMode==kUseOnTheFlyReducedEvents) 
      event = dynamic_cast<AliReducedBaseEvent*>(GetInputData(0)); 
@@ -137,13 +138,13 @@ void AliAnalysisTaskReducedEventProcessor::UserExec(Option_t *){
      if(handler)
        event = handler->GetReducedEvent();
   }
-  
   if(!event) return;
     
   fReducedTask->SetEvent(event);
   fReducedTask->Process();
+
   PostData(1, fReducedTask->GetHistogramManager()->GetHistogramOutputList());
-  
+
   if(fWriteFilteredTree)  {
      PostData(2, fReducedTask->GetFilteredTree());
   }

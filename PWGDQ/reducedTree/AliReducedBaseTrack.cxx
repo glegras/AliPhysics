@@ -20,6 +20,7 @@ AliReducedBaseTrack::AliReducedBaseTrack() :
   fFlags(0),
   fQualityFlags(0),
   fMCFlags(0),
+  fMultFlags(0),
   fIsMCTruth(kFALSE)
 {
   //
@@ -37,6 +38,7 @@ AliReducedBaseTrack::AliReducedBaseTrack(const AliReducedBaseTrack &c) :
   fFlags(c.GetFlags()),
   fQualityFlags(c.GetQualityFlags()),
   fMCFlags(c.GetMCFlags()),
+  fMultFlags(c.GetMultFlags()),
   fIsMCTruth(c.IsMCTruth())
 {
   //

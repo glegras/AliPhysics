@@ -17,6 +17,7 @@
 #include <TProfile2D.h>
 #include <TGraphErrors.h>
 #include <THn.h>
+#include <TGraph.h>
 
 #include <AliReducedPairInfo.h>
 
@@ -195,6 +196,10 @@ class AliReducedVarManager : public TObject {
   
   static const Float_t fgkParticleMass[kNSpecies];
   static const Float_t fgkPairMass[AliReducedPairInfo::kNMaxCandidateTypes];
+
+  enum Ncuts {
+    kNMaxCutsGlobalTracks=8
+  };
   
   enum Variables {
     kNothing = -1,
@@ -224,7 +229,7 @@ class AliReducedVarManager : public TObject {
     kInstLumi,           // instantaneous interaction rate
     kDetectorMask,      // detector mask
     kNumberOfDetectors, // number of active detectors
-    kBC,                // bunch crossing     
+    kBC,                // bunch crossing
     kTimeStamp,         // time stamp of the event
     kTimeRelativeSOR,   // time relative to the start of run, in minutes
     kTimeRelativeSORfraction,   // time relative to the start of runs, expressed as fraction of the whole run duration 
@@ -251,6 +256,12 @@ class AliReducedVarManager : public TObject {
     kVtxX,              // vtx X                      
     kVtxY,              // vtx Y                      
     kVtxZ,              // vtx Z 
+    kVtxXMC,            // vtx X MC                     
+    kVtxYMC,            // vtx Y MC                   
+    kVtxZMC,            // vtx Z MC
+    kVtxXDeltaTrue,        // vtx X reconstructed - true                    
+    kVtxYDeltaTrue,        // vtx Y rec-true                   
+    kVtxZDeltaTrue,        // vtx Z rec-true
     kVtxXtpc,           // vtx X from tpc
     kVtxYtpc,           // vtx Y from tpc
     kVtxZtpc,           // vtx Z from tpc
@@ -318,7 +329,9 @@ class AliReducedVarManager : public TObject {
     kNDsplusToK0sKplusSelected,       // Ds+          -> K0s K+
     kNDsminusToK0sKminusSelected,     // Ds-          -> K0s K-    
     kNtracksTotal,      // total number of tracks               
-    kNtracksSelected,   // number of selected tracks            
+    kNtracksSelected,   // number of selected tracks  
+    kNtracks1Selected,  // number of selected tracks (electrons)
+    kNtracks2Selected,  // number of selected tracks (not electrons)      
     kNtracksPosAnalyzed,// number of positive tracks passing analysis cuts      
     kNtracksNegAnalyzed,// number of negative tracks passing analysis cuts      
     kNtracksPiPlusAnalyzed,     // number of pi plus selected tracks
@@ -343,7 +356,12 @@ class AliReducedVarManager : public TObject {
     kSPDntrackletsOuterEta,
     kSPDntrackletsEtaBin,
     kSPDnTracklets10EtaVtxCorr = kSPDntrackletsEtaBin + 32,
-    kVZEROTotalMult,
+    kNGlobalTracks,                     // Filled only when event is accepted, else -999
+                                        // Max. 8 possible cutsets
+    kNGlobalTracksToward = kNGlobalTracks + kNMaxCutsGlobalTracks,   //regions to Jpsi/randomphi and regions to leading pt
+    kNGlobalTracksTransverse = kNGlobalTracksToward + 2*kNMaxCutsGlobalTracks,
+    kNGlobalTracksAway = kNGlobalTracksTransverse + 2*kNMaxCutsGlobalTracks,
+    kVZEROTotalMult = kNGlobalTracksAway + 2*kNMaxCutsGlobalTracks,
     kVZEROATotalMult,
     kVZEROCTotalMult,
     kVZEROTotalMultFromChannels,
@@ -470,13 +488,24 @@ class AliReducedVarManager : public TObject {
     kINT7orCentTriggered,
     kINT7orSemiCentTriggered,
     kHighMultV0Triggered,
+    kHighMultSPDTriggered,
     kEMCEGATriggered,
     kEMCEGAHighTriggered,
     kEtaBinForSPDtracklets,
     kMCNch,                                  // number of primary charged particles in the MC, in |eta|<1
-    kMCNchNegSide,                     // number of primary charged particles in the MC, in -1<eta<0
+    kMCNch09,                           // number of primary charged particles in the MC, in |eta|<0.9, 
+                                        // filled only if MC event is accepted (nch09>0, zvtx<10)
+                                        // Second variable is the same only if MC event is triggered and accepted, else -999
+                                        // Third variable is the same only if MC event is triggered and accepted (nch09>0, zvtx<10),
+                                        // and the reconstructed event is accepted, else -999
+    kMCNch09Toward=kMCNch09+3,
+    kMCNch09Away=kMCNch09Toward+2,       //regions to Jpsi/randomphi and regions to leading pt (leading pt chosen with cutset 1)
+    kMCNch09Transverse=kMCNch09Away+2,
+    kMCNchNegSide=kMCNch09Transverse+2,                     // number of primary charged particles in the MC, in -1<eta<0
     kMCNchPosSide,                     // number of primary charged particles in the MC, in 0<eta<1
     kMCNchSPDacc,                       // number of primary charged particles in the MC, in |eta|<1 but limited to the SPD acceptance
+    kMCNJpsi,                           // number of Jpsi in the event in |y|<0.9 (+1: Prompt Jpsi, +2: NonPrompt Jpsi)
+    kPhiJpsiMCTruth = kMCNJpsi+3,       // keep it to define MCTruth regions
     kDiffNchSPDtrklts,
     kDiffNchSPDaccSPDtrklts,
     kRelDiffNchSPDtrklts,
@@ -484,12 +513,15 @@ class AliReducedVarManager : public TObject {
     kRelDiff2NchSPDtrklts,
     kRelDiff2NchSPDaccSPDtrklts,
     kSPDntrackletsInCurrentEtaBin,
-    kNEventVars,                               // number of event variables  
+    kPtLeading,
+    kPhiLeading = kPtLeading + kNMaxCutsGlobalTracks,       // 8 possible cutsets
+    kEtaLeading = kPhiLeading + kNMaxCutsGlobalTracks,
+    kNEventVars = kEtaLeading + kNMaxCutsGlobalTracks,                               // number of event variables  
     // Particle variables --------------------------------------
     // Common pair/track variables
     kPt=kNEventVars,
     kPtMC,
-    kPt_weight,
+    kPt_weight = kPtMC + 2,    //kPTMC + 1 is filled for every MC Jpsi, kPtMC only when the particle is detected
     kPtMCfromLegs,             // MC truth pt computed using the decay leg kinematics
     kP,      
     kPMC,
@@ -552,9 +584,17 @@ class AliReducedVarManager : public TObject {
     kPairLxyz,          
     kPseudoProperDecayTime,
     kPseudoProperDecayTimeMC,
+    kPseudoProperTimeError,
+    kPseudoProperDecayTimeXYZ,
+    kPseudoProperTimeXYZError,
     kPairOpeningAngle,  
     kPairPointingAngle, 
+    kPairDeltaPhi,
+    kPairPsi,
     kPairCosPointingAngle,
+    kPairCosPointingAngleXY,
+    kPairDCAXY,                  // DCA of the pair (as if it was a track)
+    kPairDCAZ,
     kPairThetaCS,                // cos (theta*) in Collins-Soper frame       
     kPairPhiCS,                    // phi* in Collins-Soper frame
     kPairThetaHE,                // cos (theta*) in helicity frame       
@@ -589,6 +629,7 @@ class AliReducedVarManager : public TObject {
     kPairLegPtMC,                                // MC truth pair leg pt
     kPairLegPtMCSum=kPairLegPtMC+2,               // sum of the MC truth leg pt's
     kPairLegEMCALmatchedEnergy,                   // pair leg EMCal cluster energy
+    kPairMCMap,                                   // Is the pair really from one only Jpsi? Is this Jpsi from B?
 
     // Track-only variables -------------------------------------
     kPtTPC=kPairLegEMCALmatchedEnergy+2,
@@ -610,6 +651,7 @@ class AliReducedVarManager : public TObject {
     kITSlayerShared,
     kITSsignal,         
     kITSnSig,
+    kIsSPDfirst,
     kTPCncls=kITSnSig+4,    
     kTPCchi2,
     kTPCclusBitFired,   
@@ -891,7 +933,11 @@ class AliReducedVarManager : public TObject {
   static Double_t CalculateWeightFactor(Double_t Mcpt, Double_t Centrality);
   static void SetLegEfficiency(TH3F *LegEfficiency, Bool_t usePin);
   static Float_t GetPairEffWeightFactor(Float_t Cent, Float_t P1, Float_t P2, Float_t Eta1, Float_t Eta2, Int_t type = 1);
-  
+  static void SetDoImpParCorr(Bool_t option, TString path);
+  //static void SetImpParCorrGraphs(Float_t magField, TGraph* dcaxyold = nullptr, TGraph* dcaxynew = nullptr, TGraph* dcazold = nullptr, TGraph* dcaznew = nullptr);
+  static TString GetPeriodFromRunNumber(int runNo);
+  static float GetFieldFromRunNumber(int runNo);
+
  private:
   static Int_t     fgCurrentRunNumber;               // current run number
   static Float_t fgBeamMomentum;                  // beam energy (needed when calculating polarization angles) 
@@ -900,7 +946,7 @@ class AliReducedVarManager : public TObject {
   static Bool_t fgUsedVars[kNVars];              // array of flags toggled when the corresponding variable is required (e.g., in the histogram manager, in cuts, mixing handler, etc.) 
                                                  //   when a variable is used
   static void SetVariableDependencies();       // toggle those variables on which other used variables might depend 
-  
+  static Float_t fMagField;
 
   static Double_t DeltaPhi(Double_t phi1, Double_t phi2);  
   static void GetThetaPhiCM(AliReducedBaseTrack* leg1, AliReducedBaseTrack* leg2,
@@ -911,7 +957,8 @@ class AliReducedVarManager : public TObject {
   static AliKFParticle BuildKFcandidate(AliReducedTrackInfo* track1, Float_t mh1, AliReducedTrackInfo* track2, Float_t mh2);
   static AliKFParticle BuildKFvertex( AliReducedEventInfo * event );
   static AliKFParticle BuildKFtriplet(AliReducedTrackInfo* track1, Float_t mh1, AliReducedTrackInfo* track2, Float_t mh2, AliReducedTrackInfo* track3, Float_t mh3, Double_t& doubletAssocDistance, Double_t& doubletAssocDeviation);
-  
+  static void CorrectImpactParameter(AliReducedTrackInfo* track, Double_t* p, Double_t* cov);  
+
   static TH2F* fgTPCelectronCentroidMap;    // TPC electron centroid 2D map
   static TH2F* fgTPCelectronWidthMap;       // TPC electron width 2D map
   static Variables fgVarDependencyX;        // varX in the 2-D electron correction maps
@@ -963,11 +1010,17 @@ class AliReducedVarManager : public TObject {
   static TH1F* fgReweightMCpt;  // ratio between nature pt shape and gernareted pT shape
   static TH3F* fgLegEfficiency; // Leg efficiency for its propagation to the pair level
   static Bool_t fgUsePinForLegEffPropagation;   //option to propagate leg pid efficiency as a function of pin instead of p
-  
+  static Bool_t fImpParCorr;           // Impact parameter corrections to tune MC on data
+  static TString fPathImpParCorr;       // Path to the impact parametr corrections files
+  static TGraph* fDCAxyOld;            // DCAxy MC
+  static TGraph* fDCAxyNew;            // DCAxy data
+  static TGraph* fDCAzOld;             // DCAz MC
+  static TGraph* fDCAzNew;             // DCAZ data
+
   AliReducedVarManager(AliReducedVarManager const&);
   AliReducedVarManager& operator=(AliReducedVarManager const&);  
   
-  ClassDef(AliReducedVarManager, 17);
+  ClassDef(AliReducedVarManager, 18);
 };
 
 #endif

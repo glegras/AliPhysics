@@ -1,4 +1,16 @@
 void AddFMDTask();
+void AddMCSignals(AliAnalysisTaskReducedTreeMaker* task);
+void SetInactiveBranches(AliAnalysisTaskReducedTreeMaker* task);
+AliAnalysisCuts* CreateEventFilter(Bool_t isAOD);
+AliAnalysisCuts* CreateGlobalTrackFilter(Bool_t isAOD);
+void CreateTrackFilters(AliAnalysisTaskReducedTreeMaker* task, Bool_t isAOD);
+AliAnalysisCuts* CreateFlowTrackFilter(Bool_t isAOD);
+AliAnalysisCuts* CreateK0sPionCuts(Bool_t isAOD);
+AliAnalysisCuts* CreateLambdaPionCuts(Bool_t isAOD);
+AliAnalysisCuts* CreateLambdaProtonCuts(Bool_t isAOD);
+AliAnalysisCuts* CreateGammaConvElectronCuts(Bool_t isAOD);
+AliESDv0KineCuts* CreateV0StrongCuts(Int_t mode, Int_t type);
+AliESDv0KineCuts* CreateV0OpenCuts(Int_t mode, Int_t type);
 
 //__________________________________________________________________________________________
 AliAnalysisTask *AddTask_iarsene_dst(Int_t reducedEventType=-1, Bool_t writeTree=kTRUE, TString prod="LHC10h"){
@@ -72,8 +84,8 @@ AliAnalysisTask *AddTask_iarsene_dst(Int_t reducedEventType=-1, Bool_t writeTree
   //task->SetK0sMassRange(0.44,0.55);
   //task->SetLambdaMassRange(1.090,1.14);
   //task->SetGammaConvMassRange(0.0,0.1);
-  task->SetV0OpenCuts(CreateV0OpenCuts(AliESDv0KineCuts::kPurity, AliESDv0KineCuts::kPbPb));
-  task->SetV0StrongCuts(CreateV0StrongCuts(AliESDv0KineCuts::kPurity, AliESDv0KineCuts::kPbPb));
+  //task->SetV0OpenCuts(CreateV0OpenCuts(AliESDv0KineCuts::kPurity, AliESDv0KineCuts::kPbPb));
+  //task->SetV0StrongCuts(CreateV0StrongCuts(AliESDv0KineCuts::kPurity, AliESDv0KineCuts::kPbPb));
   //task->SetFillFMDInfo(); AddFMDTask();
   if(hasMC) {
      task->SetFillMCInfo(kTRUE);
@@ -81,11 +93,13 @@ AliAnalysisTask *AddTask_iarsene_dst(Int_t reducedEventType=-1, Bool_t writeTree
   }
   //task->SetFillEventPlaneInfo(kTRUE);
   
-  task->SetWriteEventsWithNoSelectedTracks(kFALSE,0.01,2);
-  task->SetWriteEventsWithNoSelectedTracksAndNoSelectedAssociatedTracks(kFALSE);
+  //task->SetWriteEventsWithNoSelectedTracks(kFALSE,0.01,2);
+  //task->SetWriteEventsWithNoSelectedTracksAndNoSelectedAssociatedTracks(kFALSE);
 
   //task->SetTreeWritingOption(AliAnalysisTaskReducedTreeMaker::kFullEventsWithFullTracks);
   //task->SetTreeWritingOption(AliAnalysisTaskReducedTreeMaker::kBaseEventsWithBaseTracks);
+  task->SetTreeWritingOption(AliAnalysisTaskReducedTreeMaker::kBaseEventsWithFullTracks);
+
   if(reducedEventType!=-1)
     task->SetTreeWritingOption(reducedEventType);
   task->SetWriteTree(writeTree);
@@ -203,7 +217,7 @@ void SetInactiveBranches(AliAnalysisTaskReducedTreeMaker* task) {
    //task->SetTreeInactiveBranch("fNtracks*");
    task->SetTreeInactiveBranch("fNV0candidates*");
    //task->SetTreeInactiveBranch("fTracks.*");
-   task->SetTreeInactiveBranch("fCandidates.*");
+   //task->SetTreeInactiveBranch("fCandidates.*");
    task->SetTreeInactiveBranch("fEventNumberInFile");
    task->SetTreeInactiveBranch("fL0TriggerInputs");
    task->SetTreeInactiveBranch("fL1TriggerInputs");
@@ -402,11 +416,11 @@ void CreateTrackFilters(AliAnalysisTaskReducedTreeMaker* task, Bool_t isAOD) {
    trackCuts->AddCut(AliDielectronVarManager::kImpactParXY,-1.0,1.0);
    trackCuts->AddCut(AliDielectronVarManager::kImpactParZ,-3.0,3.0);
    trackCuts->AddCut(AliDielectronVarManager::kEta,-0.9,0.9);
-   trackCuts->AddCut(AliDielectronVarManager::kPt,1.0,1.0e+30);
+   trackCuts->AddCut(AliDielectronVarManager::kPt,0.8,1.0e+30);
    trackCuts->AddCut(AliDielectronVarManager::kNclsTPC,70.0,161.0);   
    trackCuts->AddCut(AliDielectronVarManager::kTPCnSigmaEle, -3.0, 3.0);   
-   trackCuts->AddCut(AliDielectronVarManager::kTPCnSigmaPro, -2000.0, 3.0, kTRUE);
-   trackCuts->AddCut(AliDielectronVarManager::kTPCnSigmaPio, -2000.0, 2.0, kTRUE);
+   //trackCuts->AddCut(AliDielectronVarManager::kTPCnSigmaPro, -2000.0, 3.0, kTRUE);
+   //trackCuts->AddCut(AliDielectronVarManager::kTPCnSigmaPio, -2000.0, 2.0, kTRUE);
    jpsiElectrons->AddCut(trackCuts);
    AliDielectronTrackCuts* trackCuts2 = new AliDielectronTrackCuts("trackCuts2","track cuts");
    trackCuts2->SetRequireITSRefit(kTRUE);
@@ -420,7 +434,7 @@ void CreateTrackFilters(AliAnalysisTaskReducedTreeMaker* task, Bool_t isAOD) {
    trackCuts3->AddCut(AliDielectronVarManager::kImpactParXY,-1.0,1.0);
    trackCuts3->AddCut(AliDielectronVarManager::kImpactParZ,-3.0,3.0);
    trackCuts3->AddCut(AliDielectronVarManager::kEta,-0.9,0.9);
-   trackCuts3->AddCut(AliDielectronVarManager::kPt,0.5,1.0e+30);
+   trackCuts3->AddCut(AliDielectronVarManager::kPt,0.15,1.0e+30);
    trackCuts3->AddCut(AliDielectronVarManager::kNclsTPC,70.0,161.0);   
    assocHadr->AddCut(trackCuts3);
    AliDielectronTrackCuts* trackCuts4 = new AliDielectronTrackCuts("trackCuts4","track cuts4");
@@ -486,8 +500,16 @@ void AddFMDTask(){
 
   //gROOT->LoadClass("AliAODForwardMult", "libPWGLFforward2");
   gSystem->Load("libESDfilter.so");
-  gROOT->LoadMacro("$ALICE_ROOT/ANALYSIS/ESDfilter/macros/AddTaskESDFilter.C");
-  AliAnalysisTaskESDfilter *esdfilter = AddTaskESDFilter(kTRUE, kFALSE, kFALSE, kFALSE, kFALSE, kTRUE);
+
+  std::stringstream esdfilteradd;
+  esdfilteradd << ".x " << gSystem->Getenv("ALICE_ROOT") << "/ANALYSIS/ESDfilter/macros/AddTaskESDFilter.C";
+  std::string esdfilteraddstr = esdfilteradd.str();
+  gROOT->ProcessLine(esdfilteraddstr.c_str());
+
+  //gROOT->LoadMacro("$ALICE_ROOT/ANALYSIS/ESDfilter/macros/AddTaskESDFilter.C");
+
+  AliAnalysisTaskESDfilter *esdfilter; //= AddTaskESDFilter(kTRUE, kFALSE, kFALSE, kFALSE, kFALSE, kTRUE);
+
   //AliAnalysisTaskESDfilter *esdfilter = AddTaskESDFilter();
 
   // Create ONLY the output containers for the data produced by the task.
@@ -496,7 +518,11 @@ void AddFMDTask(){
   mgr->ConnectInput  (esdfilter,  0, mgr->GetCommonInputContainer());
   mgr->ConnectOutput (esdfilter,  0, mgr->GetCommonOutputContainer());
 
-  gROOT->LoadMacro("$ALICE_PHYSICS/PWGLF/FORWARD/analysis2/AddTaskForwardMult.C");
+  //gROOT->LoadMacro("$ALICE_PHYSICS/PWGLF/FORWARD/analysis2/AddTaskForwardMult.C");
+  std::stringstream forwardmultadd;
+  forwardmultadd << ".x " << gSystem->Getenv("ALICE_PHYSICS") << "PWGLF/FORWARD/analysis2/AddTaskForwardMult.C";
+  std::string forwardmultaddstr = forwardmultadd.str();
+  gROOT->ProcessLine(forwardmultaddstr.c_str());
 
   Bool_t   mc  = false; // false: real data, true: simulated data
   ULong_t run = 0; // 0: get from data???
@@ -506,7 +532,8 @@ void AddFMDTask(){
   //AliAnalysisTask *taskFmd  = AddTaskForwardMult(mc, sys, sNN, fld);
   //const Char_t* config = "$ALICE_PHYSICS/PWGDQ/dielectron/ReducedTreeMaker/ForwardAODConfig2.C";
   const Char_t* config = "ForwardAODConfig2.C";  // to be changed to the above line when config is committed
-  AliAnalysisTask *taskFmd  = AddTaskForwardMult(mc, run, sys, sNN, fld, config);
+  
+  AliAnalysisTask *taskFmd;  //= AddTaskForwardMult(mc, run, sys, sNN, fld, config);
 
 
 

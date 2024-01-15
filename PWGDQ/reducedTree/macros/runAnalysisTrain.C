@@ -20,9 +20,9 @@ Int_t gGridMaxInputFileNumber = 50;
 TChain* makeChain(const Char_t* filename, const Char_t* inputType);
 
 //______________________________________________________________________________________________________________________________________
-void runAnalysisTrain(const Char_t* infile, const Char_t* runmode = "local", const Char_t* inputType="ESD", Bool_t hasMC = kFALSE,
-                                     Int_t reducedEventType = -1, Bool_t writeTree = kFALSE, TString tasks="dst", TString prod = "LHC10h",
-                      Int_t nEntries=-1, Int_t firstEntry=0, TString pathForMacros="$ALICE_PHYSICS/PWGDQ/reducedTree/macros")
+void runAnalysisTrain(const Char_t* infile="events.txt", const Char_t* runmode = "local", const Char_t* inputType="reducedEvent", Bool_t hasMC = kFALSE,
+                       Int_t reducedEventType = -1, Bool_t writeTree = kFALSE, TString tasks="dst", TString prod = "LHC10h",
+                       Int_t nEntries=-1, Int_t firstEntry=0, TString pathForMacros="$ALICE_PHYSICS/PWGDQ/reducedTree/macros")
 {
    //
    // infile: list of input files if mode is local, or list of runs for job submission if mode is grid
@@ -35,7 +35,7 @@ void runAnalysisTrain(const Char_t* infile, const Char_t* runmode = "local", con
    gROOT->ProcessLine(".include $ALICE_PHYSICS/include");
    gROOT->ProcessLine(".include $ALICE_ROOT/include");
    gROOT->ProcessLine(".include $ROOTSYS/include");
-   
+
    // Create the analysis manager
    AliAnalysisManager *mgr = new AliAnalysisManager("ReducedTreeAnalysis");
    
@@ -194,27 +194,33 @@ void runAnalysisTrain(const Char_t* infile, const Char_t* runmode = "local", con
 #endif
    }
 
+
 #ifdef __CLING__
   // ROOT6 version
   std::stringstream trainadd;
-  trainadd << ".x " << gSystem->Getenv("ALICE_PHYSICS") << "/PWGDQ/reducedTree/macros/AddTask_TrainTreeAnalysis.C(";
-  trainadd << (!runmodestr.CompareTo("grid") ? kTRUE : kFALSE) << ", ";
-  trainadd << "\"" << prod.Data() << "\", ";
-  trainadd << reducedEventType << ", ";
-  trainadd << writeTree << ", ";
-  trainadd << "\"" << tasks.Data() << "\", ";
-  trainadd << "\"" << pathForMacros.Data() << "\")";
+  //trainadd << ".x " << gSystem->Getenv("ALICE_PHYSICS") <<"/../../../../AliPhysics/PWGDQ/reducedTree/macros/AddTask_Ailec_jpsi2ee.C()" ;
+  trainadd << ".x " << gSystem->Getenv("ALICE_PHYSICS") <<"/../../../../AliPhysics/PWGDQ/reducedTree/macros/AddTask_glegras_FilterTrees.C(kFALSE,2)" ;
+  //trainadd << ".x " << gSystem->Getenv("ALICE_PHYSICS") <<"/../../../../AliPhysics/PWGLF/SPECTRA/ChargedHadrons/MultDepSpec/macros/AddTask_mkrueger_MultDepSpecMC.C(\"pp_13TeV\")" ;
+  //trainadd << ".x " << gSystem->Getenv("ALICE_PHYSICS") <<"/../../../../AliPhysics/PWGDQ/reducedTree/macros/lego_train_test/AddTask_ailec_dst.C()" ;
+  //trainadd << (!runmodestr.CompareTo("grid") ? kTRUE : kFALSE) << ", ";
+  //trainadd << "\"" << prod.Data() << "\", ";
+  //trainadd << reducedEventType << ", ";
+  //trainadd << writeTree << ", ";
+  //trainadd << "\"" << tasks.Data() << "\", ";
+  //trainadd << "\"" << pathForMacros.Data() << "\")";
   std::string trainaddstr = trainadd.str();
   std::cout << "Calling Add macro using command string: " << trainaddstr << std::endl;
   gROOT->ProcessLine(trainaddstr.c_str());
 #else
   // ROOT5 version
-  gROOT->LoadMacro("$ALICE_PHYSICS/PWGDQ/reducedTree/macros/AddTask_TrainTreeAnalysis.C");
-  AddTask_TrainTreeAnalysis((!runmodestr.CompareTo("grid") ? kTRUE : kFALSE), prod, reducedEventType, writeTree, tasks, pathForMacros);
+  gROOT->LoadMacro("/../../../../AliPhysics/PWGDQ/reducedTree/macros/AddTask_Ailec_jpsi2ee.C");
+  //AddTask_TrainTreeAnalysis((!runmodestr.CompareTo("grid") ? kTRUE : kFALSE), prod, reducedEventType, writeTree, tasks, pathForMacros);
+  AddTask_Ailec_jpsi2ee();
+
 #endif
 
    // Enable debug printouts
-   //mgr->SetDebugLevel(10);
+   // mgr->SetDebugLevel(10);
 
    if (!mgr->InitAnalysis()) return;
 
@@ -231,13 +237,13 @@ void runAnalysisTrain(const Char_t* infile, const Char_t* runmode = "local", con
    mgr->PrintStatus();
    // Start analysis
    if(nEntries==-1) nEntries=1234567890;
+
    if(runmodestr.Contains("local"))
       mgr->StartAnalysis("local", chain, nEntries, firstEntry);
    if(runmodestr.Contains("proof"))
       mgr->StartAnalysis("proof", chain, nEntries, firstEntry);
    if(runmodestr.Contains("grid"))
       mgr->StartAnalysis("grid", nEntries, firstEntry);
-
 
 	//--------------------------------------------
 	// piping event stat histograms from tree file(s) into analysis output(s)
@@ -518,8 +524,9 @@ TChain* makeChain(const Char_t* filename, const Char_t* inputType) {
   if(itStr.Contains("esd"))
     chain=new TChain("esdTree");
   if(itStr.Contains("aod"))
-     chain=new TChain("aodTree");
-  
+    chain=new TChain("aodTree");
+   
+
   ifstream in;
   in.open(filename);
                                                                                                                                                                
@@ -527,11 +534,20 @@ TChain* makeChain(const Char_t* filename, const Char_t* inputType) {
   //loop over file                                                                                                                                                             
   while(in.good()) {
     in >> line;
+/*
+	if(itStr.Contains("reducedevent") || itStr.Contains("baseevent"))
+		line.Append("/dstTree.root");
+    if(itStr.Contains("esd"))
+		line.Append("/AliESDs.root"); 
+    if(itStr.Contains("aod"))
+		line.Append("/AliAOD.root"); 
+*/
     if (!line.IsNull()) {
       cout << "Adding file: " << line <<endl;
       chain->AddFile(line);
     }
   }
   cout << "Number of events in chain: " << chain->GetEntries() << endl;
+  
   return chain;
 }

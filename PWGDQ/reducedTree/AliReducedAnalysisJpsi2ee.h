@@ -64,6 +64,19 @@ public:
      fJpsiMotherMCcuts.Add(cutMother);
      fJpsiElectronMCcuts.Add(cutElectron);
   }
+
+
+
+  void SetWritePairTree(Bool_t wpt) {fWritePairTree=wpt;}
+  void AddPairBranch(Int_t branchVar, TString branchName) {
+      int size=fPairBranchesVar->fN;
+      fPairBranchesVar->Set(size+1);fPairBranchesVar->AddAt(branchVar,size);
+      fPairBranchesName[size]=branchName;
+   }
+
+
+
+
   
   // getters
   virtual AliHistogramManager* GetHistogramManager() const {return fHistosManager;}
@@ -90,7 +103,7 @@ public:
   const Char_t* GetLegCandidateMCcutName(Int_t i) const {return (i<fLegCandidatesMCcuts.GetEntries() ? fLegCandidatesMCcuts.At(i)->GetName() : "");}
   Int_t GetNJpsiMotherMCCuts() const {return fJpsiMotherMCcuts.GetEntries();}
   const Char_t* GetJpsiMotherMCcutName(Int_t i) const {return (i<fJpsiMotherMCcuts.GetEntries() ? fJpsiMotherMCcuts.At(i)->GetName() : "");}
-  
+    
 protected:
    AliHistogramManager*               fHistosManager;       // Histogram manager
    AliMixingHandler*                  fMixingHandler;       // mixing handler
@@ -168,6 +181,13 @@ protected:
   TList*  fClusterTrackMatcherHistograms;             // list of cluster-track matcher histograms
   TH1I*   fClusterTrackMatcherMultipleMatchesBefore;  // multiple matches of tracks to same cluster before matching
   TH1I*   fClusterTrackMatcherMultipleMatchesAfter;   // multiple matches of tracks to same cluster after matching
+
+  TFile* fileWritePairTree;
+  TTree* fPairTree;
+  Bool_t fWritePairTree;
+  Float_t* fPairBranches[20];
+  TArrayI* fPairBranchesVar;
+  TString fPairBranchesName[20];
 
   Bool_t fSkipMCEvent;          // decision to skip MC event
   TH1F*  fMCJpsiPtWeights;            // weights vs pt to reject events depending on the jpsi true pt (needed to re-weights jpsi Pt distribution)

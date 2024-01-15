@@ -43,13 +43,16 @@ AliReducedPairInfo::AliReducedPairInfo() :
   fLxy(0.0),
   fPsProper(0.0),
   fPointingAngle(0.0),
-  fChisquare(0.0)
+  fChisquare(0.0),
+  fMCMap(0)
 {
   //
   // Constructor
   //
   fLegIds[0] = 0; fLegIds[1] = 0;
   fMass[0]=-999.; fMass[1]=-999.; fMass[2]=-999.; fMass[3]=-999.;
+  for (int i = 0; i < 24; i++) fNTracksRegions[i] = 0;
+  for (int i = 0; i < 10; i++) fPairTopology[i] = -999.;
 }
 
 
@@ -64,7 +67,8 @@ AliReducedPairInfo::AliReducedPairInfo(const AliReducedPairInfo &c) :
   fLxy(c.Lxy()),
   fPsProper(c.PsProper()),
   fPointingAngle(c.PointingAngle()),
-  fChisquare(c.Chi2())
+  fChisquare(c.Chi2()),
+  fMCMap(c.MCMap())
 {
   //
   // copy constructor
@@ -72,6 +76,9 @@ AliReducedPairInfo::AliReducedPairInfo(const AliReducedPairInfo &c) :
   fLegIds[0] = c.LegId(0);
   fLegIds[1] = c.LegId(1);
   fMass[0] = c.Mass(0); fMass[1] = c.Mass(1); fMass[2] = c.Mass(2); fMass[3] = c.Mass(3);
+  for (int i = 0; i < 24; i++) fNTracksRegions[i] = 0;
+    for (int i = 0; i < 12; i++) fPairTopology[i] = c.PairTopology(i);
+
 }
 
 

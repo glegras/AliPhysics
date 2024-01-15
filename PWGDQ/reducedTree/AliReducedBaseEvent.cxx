@@ -29,7 +29,10 @@ AliReducedBaseEvent::AliReducedBaseEvent() :
   fCentrality(),
   fCentQuality(0),
   fNtracks(),
+  fNGlobalTracks(),
+  fNTracksRegions(),
   fNV0candidates(),
+  fLeading(),
   fTracks(0x0),
   fTracks2(0x0),
   fCandidates(0x0)
@@ -40,6 +43,9 @@ AliReducedBaseEvent::AliReducedBaseEvent() :
   for(Int_t i=0; i<3; ++i) {fVtx[i]=-999.;}
   for(Int_t i=0; i<16; ++i) fCentrality[i]=-1.;
   fNtracks[0]=0; fNtracks[1]=0;
+  for(Int_t i=0; i<8; i++) fNGlobalTracks[i]=0;
+  for(Int_t i=0; i<48; i++) fNTracksRegions[i]=0;
+  for(Int_t i=0; i<24; i++) fLeading[i]=0.;
   fNV0candidates[0]=0; fNV0candidates[1]=0;
 }
 
@@ -54,6 +60,9 @@ AliReducedBaseEvent::AliReducedBaseEvent(const Char_t* /*name*/, Int_t trackOpti
   fCentrality(),
   fCentQuality(0),
   fNtracks(),
+  fNGlobalTracks(),
+  fNTracksRegions(),
+  fLeading(),
   fNV0candidates(),
   fTracks(0x0),
   fTracks2(0x0),
@@ -65,6 +74,9 @@ AliReducedBaseEvent::AliReducedBaseEvent(const Char_t* /*name*/, Int_t trackOpti
   for(Int_t i=0; i<3; ++i) {fVtx[i]=-999.;}
   for(Int_t i=0; i<16; ++i) fCentrality[i]=-1.;
   fNtracks[0]=0; fNtracks[1]=0;
+  for(Int_t i=0; i<8; i++) fNGlobalTracks[i]=0;
+  for(Int_t i=0; i<48; i++) fNTracksRegions[i]=0;
+  for(Int_t i=0; i<24; i++) fLeading[i]=0.;
   fNV0candidates[0]=0; fNV0candidates[1]=0;
   
   if(trackOption == kUseBaseTracks) {
@@ -111,7 +123,11 @@ void AliReducedBaseEvent::CopyEventHeader(const AliReducedBaseEvent* other) {
    fNVtxContributors = other->fNVtxContributors;
    for(Int_t i=0; i<16; ++i) fCentrality[i] = other->fCentrality[i];
    fCentQuality = other->fCentQuality;
-   fNtracks[0] = other->fNtracks[0]; 
+   fNtracks[0] = other->fNtracks[0];
+   fNtracks[1] = other->fNtracks[1]; 
+   for(Int_t i=0; i<8; i++) fNGlobalTracks[i] = other->fNGlobalTracks[i];
+   for(Int_t i=0; i<48; i++) fNTracksRegions[i] = other->fNTracksRegions[i];
+   for(Int_t i=0; i<24; i++) fLeading[i] = other->fLeading[i];
    fNV0candidates[0] = other->fNV0candidates[0];
 }
 
@@ -126,8 +142,11 @@ void AliReducedBaseEvent::ClearEvent() {
   fEventTag = 0;
   fRunNo = 0;
   fCentQuality = 0;
-  for(Int_t i=0;i<16;++i) fCentrality[i] = -9999.0;
-  fNtracks[0] = 0; fNtracks[1] = 0;
+  for(Int_t i=0;i<7;++i) fCentrality[i] = -9999.0;
+  fNtracks[0] = 0; fNtracks[1] = 0; 
+  for(Int_t i=0; i<8; i++) fNGlobalTracks[i] = 0;
+  for(Int_t i=0; i<48; i++) fNTracksRegions[i] = 0;
+  for(Int_t i=0; i<24; i++) fLeading[i] = 0.;
   fNV0candidates[0] = 0; fNV0candidates[1] = 0;
   for(Int_t i=0; i<3; ++i) {fVtx[i]=-9999.;}
   fNVtxContributors = 0;
