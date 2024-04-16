@@ -29,6 +29,7 @@ AliReducedAnalysisFilterTrees::AliReducedAnalysisFilterTrees() :
   AliReducedAnalysisTaskSE(),
   fHistosManager(new AliHistogramManager("Histogram Manager", AliReducedVarManager::kNVars)),
   fMixingHandler(new AliMixingHandler("J/psi signal extraction","", AliMixingHandler::kMixResonanceLegs)),
+  fMixingHandlerTRD(new AliMixingHandler("J/psi signal extraction TRD","", AliMixingHandler::kMixResonanceLegs)),
   fMixingHandlerMult(),
   fMultBinsMixing(),
   fNMultBinsMixing(0),
@@ -59,6 +60,7 @@ AliReducedAnalysisFilterTrees::AliReducedAnalysisFilterTrees() :
   fJpsiMassDist(),
   fMCParticleCompositionWeights(),
   fMeasuredMultTrackCuts(),
+  fWeightsTrackCuts(),
   fTrueMultTrackCuts(),
   fLeg1PrefilterCuts(),
   fLeg2PrefilterCuts(),
@@ -73,7 +75,8 @@ AliReducedAnalysisFilterTrees::AliReducedAnalysisFilterTrees() :
   fJpsiMotherMCcuts(),
   fMCJpsiPtWeights(0x0),
   fSkipMCEvent(kFALSE),
-  fJpsiElectronMCcuts()
+  fJpsiElectronMCcuts(), 
+  fVtxCorrection(kFALSE)
 {
   //
   // default constructor
@@ -85,6 +88,7 @@ AliReducedAnalysisFilterTrees::AliReducedAnalysisFilterTrees(const Char_t* name,
   AliReducedAnalysisTaskSE(name,title),
   fHistosManager(new AliHistogramManager("Histogram Manager", AliReducedVarManager::kNVars)),
   fMixingHandler(new AliMixingHandler("J/psi signal extraction","", AliMixingHandler::kMixResonanceLegs)),
+  fMixingHandlerTRD(new AliMixingHandler("J/psi signal extraction TRD","", AliMixingHandler::kMixResonanceLegs)),
   fMixingHandlerMult(),  
   fMultBinsMixing(),
   fNMultBinsMixing(0),  
@@ -115,6 +119,7 @@ AliReducedAnalysisFilterTrees::AliReducedAnalysisFilterTrees(const Char_t* name,
   fJpsiMassDist(),
   fMCParticleCompositionWeights(),
   fMeasuredMultTrackCuts(),
+  fWeightsTrackCuts(),
   fTrueMultTrackCuts(),
   fLeg1PrefilterCuts(),
   fLeg2PrefilterCuts(),
@@ -129,7 +134,8 @@ AliReducedAnalysisFilterTrees::AliReducedAnalysisFilterTrees(const Char_t* name,
   fJpsiMotherMCcuts(),
   fMCJpsiPtWeights(0x0),
   fSkipMCEvent(kFALSE),
-  fJpsiElectronMCcuts()  
+  fJpsiElectronMCcuts(),
+  fVtxCorrection(kFALSE) 
 {
   //
   // named constructor
@@ -142,6 +148,7 @@ AliReducedAnalysisFilterTrees::AliReducedAnalysisFilterTrees(const Char_t* name,
    fLeg2Cuts.SetOwner(kTRUE);
    fCandidatePairCuts.SetOwner(kTRUE);
    fMeasuredMultTrackCuts.SetOwner(kTRUE);
+   fWeightsTrackCuts.SetOwner(kTRUE);
    fTrueMultTrackCuts.SetOwner(kTRUE);
    fLeg1PrefilterCuts.SetOwner(kTRUE);
    fLeg2PrefilterCuts.SetOwner(kTRUE);
@@ -162,12 +169,14 @@ AliReducedAnalysisFilterTrees::~AliReducedAnalysisFilterTrees()
    fEventCuts.Clear("C"); fTrackCuts.Clear("C"); fPairCuts.Clear("C");
    fLeg1Cuts.Clear("C"); fLeg2Cuts.Clear("C"); fCandidatePairCuts.Clear("C");
    fMeasuredMultTrackCuts.Clear("C"); fTrueMultTrackCuts.Clear("C");
+   fWeightsTrackCuts.Clear("C");
    fLeg1PrefilterCuts.Clear("C"); fLeg2PrefilterCuts.Clear("C");
    fLeg1PairPrefilterCuts.Clear("C"); fLeg2PairPrefilterCuts.Clear("C");
    fLeg1Tracks.Clear("C"); fLeg2Tracks.Clear("C");
    fLeg1PrefilteredTracks.Clear("C"); fLeg2PrefilteredTracks.Clear("C");
    if(fHistosManager) delete fHistosManager;
    if(fMixingHandler) delete fMixingHandler;
+   if(fMixingHandlerTRD) delete fMixingHandlerTRD;
    if (fJpsiMassDist) delete fJpsiMassDist;
    fMixingHandlerMult.Clear("C");
 
@@ -182,6 +191,7 @@ void AliReducedAnalysisFilterTrees::Init() {
    fHistosManager->SetUseDefaultVariableNames(kTRUE);
    fHistosManager->SetDefaultVarNames(AliReducedVarManager::fgVariableNames,AliReducedVarManager::fgVariableUnits);
    fMixingHandler->SetHistogramManager(fHistosManager);
+   fMixingHandlerTRD->SetHistogramManager(fHistosManager);
 }
 
 //___________________________________________________________________________
@@ -211,6 +221,7 @@ void AliReducedAnalysisFilterTrees::Process() {
 
   if(fComputeMult) FillMultiplicity(kFALSE);
   int nGlobalEstimators = (fComputeMult ? GetNMeasMultCuts() : 0) ;
+  if (GetVertexCorrection()) AliReducedVarManager::CorrectMultiplicityEstimators(fValues);
 
 
   bool isEventUnbiased = fEvent->TestEventTag(14) || GetRunOverMC(); 
@@ -265,12 +276,8 @@ void AliReducedAnalysisFilterTrees::Process() {
    if (abs(fValues[AliReducedVarManager::kVtxZ]) > 10) isEventSelected = kFALSE;
 
 
-  if(!isEventSelected) {
-      for(int v=AliReducedVarManager::kMultiplicity; v<AliReducedVarManager::kMultiplicity + AliReducedVarManager::kNMultiplicityEstimators;v++)
-         fValues[v]=-999. ; //Reset the multiplicity estimators
-      fValues[AliReducedVarManager::kMCNch09 + 2]=-999.;
-   }
-
+  // apply event selection
+  if(!isEventSelected) return;
 
   if (isEventUnbiased) {
       for (int cutMode = 0; cutMode < 4*nGlobalEstimators; cutMode = cutMode+4) {
@@ -279,7 +286,7 @@ void AliReducedAnalysisFilterTrees::Process() {
          // => HM filled even if no HM triggered events
 
          // MB triggered
-         if (fValues[AliReducedVarManager::kINT7Triggered] || GetRunOverMC()) {
+         if (fValues[AliReducedVarManager::kINT7Triggered]) {
             fHistosManager->FillHistClass(Form("pp_13TeV_Data_cutMode_%d", cutMode+100),fValues);
             fHistosManager->FillHistClass(Form("pp_13TeV_MC_cutMode_%d", cutMode+100),fValues);
             fHistosManager->FillHistClass(Form("pPb_5TeV_Data_cutMode_%d", cutMode+100),fValues);
@@ -310,8 +317,6 @@ void AliReducedAnalysisFilterTrees::Process() {
       }
   }
 
-  // apply event selection
-  if(!isEventSelected) return;
 
   // Temporary stuff for MC to check pion pT distribution - should be removed soon
    /*AliReducedBaseTrack* track = 0x0;
@@ -336,6 +341,10 @@ return;*/
   // fill event info histograms after cuts
   if(isEventUnbiased){
    fHistosManager->FillHistClass("Event_AfterCuts", fValues);
+   if (fValues[AliReducedVarManager::kINT7Triggered]) fHistosManager->FillHistClass("Event_AfterCuts_MB", fValues);
+   if (fValues[AliReducedVarManager::kHighMultV0Triggered]) fHistosManager->FillHistClass("Event_AfterCuts_HM", fValues);
+   if (fValues[AliReducedVarManager::kINT7Triggered] && fValues[AliReducedVarManager::kTRDTriggered]) fHistosManager->FillHistClass("Event_AfterCuts_MB_TRD", fValues);
+   if (fValues[AliReducedVarManager::kTRDTriggered]) fHistosManager->FillHistClass("Event_AfterCuts_TRD", fValues);
    for (int icut = 0; icut<nGlobalEstimators; icut++) {
          if (fValues[AliReducedVarManager::kINT7Triggered] || fValues[AliReducedVarManager::kHighMultV0Triggered] /*|| fValues[AliReducedVarManager::kHighMultSPDTriggered]*/) { 
             fHistosManager->FillHistClass(Form("EventMult_%s_Inclusive",GetMeasMultcutName(icut)), fValues);
@@ -343,6 +352,10 @@ return;*/
          if (fValues[AliReducedVarManager::kINT7Triggered]) fHistosManager->FillHistClass(Form("EventMult_%s_MB",GetMeasMultcutName(icut)), fValues);
          if (fValues[AliReducedVarManager::kHighMultV0Triggered] ) fHistosManager->FillHistClass(Form("EventMult_%s_HM",GetMeasMultcutName(icut)), fValues);
          if (fValues[AliReducedVarManager::kHighMultSPDTriggered] ) fHistosManager->FillHistClass(Form("EventMult_%s_HighMultSPD",GetMeasMultcutName(icut)), fValues);
+         if (fValues[AliReducedVarManager::kINT7Triggered] && fValues[AliReducedVarManager::kTRDTriggered]) fHistosManager->FillHistClass(Form("EventMult_%s_MB_TRD",GetMeasMultcutName(icut)), fValues);
+         if (fValues[AliReducedVarManager::kHighMultV0Triggered] && fValues[AliReducedVarManager::kTRDTriggered]) fHistosManager->FillHistClass(Form("EventMult_%s_HM_TRD",GetMeasMultcutName(icut)), fValues);
+         if (fValues[AliReducedVarManager::kTRDTriggered] ) fHistosManager->FillHistClass(Form("EventMult_%s_TRD",GetMeasMultcutName(icut)), fValues);
+
    }
 
    if (fValues[AliReducedVarManager::kINT7Triggered] || fValues[AliReducedVarManager::kHighMultV0Triggered] /*|| fValues[AliReducedVarManager::kHighMultSPDTriggered]*/) fHistosManager->FillHistClass("CorrelMult_Inclusive", fValues); //Correlations between different multiplicity estimators
@@ -386,35 +399,67 @@ void AliReducedAnalysisFilterTrees::CreateFilteredEvent() {
    if(fWriteFilteredTracks) WriteFilteredTracks();
    if(fWriteFilteredTracks && !fWriteFilteredTracksCandidatesOnly) WriteFilteredTracks(2);
 
+   fFilteredEvent->SetV0Mult(fValues[AliReducedVarManager::kVZEROTotalMult], fValues[AliReducedVarManager::kVZEROATotalMult], fValues[AliReducedVarManager::kVZEROCTotalMult]);
    if(fComputeMult) {
       FillMultiplicity(kTRUE);
+      if (GetVertexCorrection()) AliReducedVarManager::CorrectMultiplicityEstimators(fValues);
       for (int icut = 0; icut<GetNMeasMultCuts(); icut++) {
 
          if(fEvent->TestEventTag(14) || GetRunOverMC()) { //event is unbiased
             // Both triggers + MB + HM  (regions to jpsi)
-            if (fValues[AliReducedVarManager::kINT7Triggered] || fValues[AliReducedVarManager::kHighMultV0Triggered] || fValues[AliReducedVarManager::kHighMultSPDTriggered]) fHistosManager->FillHistClass(Form("EventMultRegions_%s_Inclusive",GetMeasMultcutName(icut)), fValues);
+            if (fValues[AliReducedVarManager::kINT7Triggered] || fValues[AliReducedVarManager::kHighMultV0Triggered]) fHistosManager->FillHistClass(Form("EventMultRegions_%s_Inclusive",GetMeasMultcutName(icut)), fValues);
             if (fValues[AliReducedVarManager::kINT7Triggered]) fHistosManager->FillHistClass(Form("EventMultRegions_%s_MB",GetMeasMultcutName(icut)), fValues);
             if (fValues[AliReducedVarManager::kHighMultV0Triggered] ) fHistosManager->FillHistClass(Form("EventMultRegions_%s_HM",GetMeasMultcutName(icut)), fValues);
             if (fValues[AliReducedVarManager::kHighMultSPDTriggered] ) fHistosManager->FillHistClass(Form("EventMultRegions_%s_HighMultSPD",GetMeasMultcutName(icut)), fValues);
+            if (fValues[AliReducedVarManager::kINT7Triggered] && fValues[AliReducedVarManager::kTRDTriggered]) fHistosManager->FillHistClass(Form("EventMultRegions_%s_MB_TRD",GetMeasMultcutName(icut)), fValues);
+            if (fValues[AliReducedVarManager::kTRDTriggered] ) fHistosManager->FillHistClass(Form("EventMultRegions_%s_TRD",GetMeasMultcutName(icut)), fValues);
             
             if(fValues[AliReducedVarManager::kPtLeading + icut] > fMinPtLeading) {
                // Both triggers + MB + HM  (regions to leading)
-               if (fValues[AliReducedVarManager::kINT7Triggered] || fValues[AliReducedVarManager::kHighMultV0Triggered] || fValues[AliReducedVarManager::kHighMultSPDTriggered]) fHistosManager->FillHistClass(Form("EventMultRegions2Leading_%s_Inclusive",GetMeasMultcutName(icut)), fValues);
+               if (fValues[AliReducedVarManager::kINT7Triggered] || fValues[AliReducedVarManager::kHighMultV0Triggered]) fHistosManager->FillHistClass(Form("EventMultRegions2Leading_%s_Inclusive",GetMeasMultcutName(icut)), fValues);
                if (fValues[AliReducedVarManager::kINT7Triggered]) fHistosManager->FillHistClass(Form("EventMultRegions2Leading_%s_MB", GetMeasMultcutName(icut)), fValues);
                if (fValues[AliReducedVarManager::kHighMultV0Triggered] ) fHistosManager->FillHistClass(Form("EventMultRegions2Leading_%s_HM", GetMeasMultcutName(icut)), fValues);
                if (fValues[AliReducedVarManager::kHighMultSPDTriggered] ) fHistosManager->FillHistClass(Form("EventMultRegions2Leading_%s_HighMultSPD", GetMeasMultcutName(icut)), fValues);
+               if (fValues[AliReducedVarManager::kINT7Triggered] && fValues[AliReducedVarManager::kTRDTriggered]) fHistosManager->FillHistClass(Form("EventMultRegions2Leading_%s_MB_TRD",GetMeasMultcutName(icut)), fValues);
+               if (fValues[AliReducedVarManager::kTRDTriggered] ) fHistosManager->FillHistClass(Form("EventMultRegions2Leading_%s_TRD",GetMeasMultcutName(icut)), fValues);
+
             }
          }
 
-         fFilteredEvent->SetNGlobalTracks(fValues[AliReducedVarManager::kNGlobalTracks + icut], icut);
+         int kCorrectedMult = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracks + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracks + icut;
+
+         fFilteredEvent->SetNGlobalTracks(fValues[kCorrectedMult], icut);
          // Fill mult regions relative to jpsi
-         fFilteredEvent->SetNTracksRegions(fValues[AliReducedVarManager::kNGlobalTracksToward + icut], 0, true, icut);
-         fFilteredEvent->SetNTracksRegions(fValues[AliReducedVarManager::kNGlobalTracksTransverse + icut], 1, true, icut);
-         fFilteredEvent->SetNTracksRegions(fValues[AliReducedVarManager::kNGlobalTracksAway + icut], 2, true, icut);
+         int kCorrectedMultToward = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracksToward + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracksToward + icut;
+         int kCorrectedMultTransverse = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracksTransverse + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracksTransverse + icut;         
+         int kCorrectedMultAway = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracksAway + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracksAway + icut;
+
+         fFilteredEvent->SetNTracksRegions(fValues[kCorrectedMultToward], 0, true, icut);
+         fFilteredEvent->SetNTracksRegions(fValues[kCorrectedMultTransverse], 1, true, icut);
+         fFilteredEvent->SetNTracksRegions(fValues[kCorrectedMultAway], 2, true, icut);
          // Fill mult regions relative to leading pt
-         fFilteredEvent->SetNTracksRegions(fValues[AliReducedVarManager::kNGlobalTracksToward + AliReducedVarManager::kNMaxCutsGlobalTracks + icut], 0, false, icut);
-         fFilteredEvent->SetNTracksRegions(fValues[AliReducedVarManager::kNGlobalTracksTransverse + AliReducedVarManager::kNMaxCutsGlobalTracks + icut], 1, false, icut);
-         fFilteredEvent->SetNTracksRegions(fValues[AliReducedVarManager::kNGlobalTracksAway + AliReducedVarManager::kNMaxCutsGlobalTracks + icut], 2, false, icut);
+
+         int kCorrectedMultToward2Leading = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracksToward2Leading + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracksToward2Leading + icut;
+         int kCorrectedMultTransverse2Leading = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracksTransverse2Leading + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracksTransverse2Leading + icut;         
+         int kCorrectedMultAway2Leading = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracksAway2Leading + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracksAway2Leading + icut;
+
+         fFilteredEvent->SetNTracksRegions(fValues[kCorrectedMultToward2Leading], 0, false, icut);
+         fFilteredEvent->SetNTracksRegions(fValues[kCorrectedMultTransverse2Leading], 1, false, icut);
+         fFilteredEvent->SetNTracksRegions(fValues[kCorrectedMultAway2Leading], 2, false, icut);
 
          fFilteredEvent->SetLeadingParticle(fValues[AliReducedVarManager::kPtLeading + icut], fValues[AliReducedVarManager::kPhiLeading + icut], fValues[AliReducedVarManager::kEtaLeading + icut], icut);
       }
@@ -495,8 +540,10 @@ void AliReducedAnalysisFilterTrees::WriteFilteredTracks(Int_t array /*=1*/) {
          }
          if(track->IsA() == AliReducedTrackInfo::Class()) {
             AliReducedTrackInfo* filteredParticle=NULL;
+
             AliReducedTrackInfo* tempTrack = dynamic_cast<AliReducedTrackInfo*>(track);
             //filteredParticle = (AliReducedTrackInfo*) tracks.ConstructedAt(tracks.GetEntries());
+
             new(tracks[tracks.GetEntries()]) AliReducedTrackInfo(*tempTrack);
             //filteredParticle = new(tracks[tracks.GetEntries()]) AliReducedTrackInfo(*tempTrack);
          }
@@ -523,17 +570,25 @@ void AliReducedAnalysisFilterTrees::BuildCandidatePairs() {
    
    // Feed the selected tracks to the event mixing handler 
    if(fOptionRunMixing) {
-      fMixingHandler->FillEvent(&fLeg1Tracks, &fLeg2Tracks, fValues, AliReducedPairInfo::kJpsiToEE);
-      if(fOptionRunMixingMult){ // Mixed event in multiplicity bins
-        AliMixingHandler* handler;
-        TIter nextHandler(&fMixingHandlerMult); 
-        for (int i=0; i<fMixingHandlerMult.GetEntries(); i++) {
-            handler = (AliMixingHandler*) nextHandler();
-            if (fValues[AliReducedVarManager::kNGlobalTracks]>=fMultBinsMixing[i] && fValues[AliReducedVarManager::kNGlobalTracks]<fMultBinsMixing[i+1]) {
-               handler->FillEvent(&fLeg1Tracks, &fLeg2Tracks, fValues, AliReducedPairInfo::kJpsiToEE);
+      if (fValues[AliReducedVarManager::kINT7Triggered] || fValues[AliReducedVarManager::kHighMultV0Triggered]) {
+         // We don't take TRD trigger because it biases the electrons pT distribution
+         fMixingHandler->FillEvent(&fLeg1Tracks, &fLeg2Tracks, fValues, AliReducedPairInfo::kJpsiToEE);
+         if(fOptionRunMixingMult){ // Mixed event in multiplicity bins
+            AliMixingHandler* handler;
+            TIter nextHandler(&fMixingHandlerMult); 
+            for (int i=0; i<fMixingHandlerMult.GetEntries(); i++) {
+                  handler = (AliMixingHandler*) nextHandler();
+                  if (fValues[AliReducedVarManager::kNGlobalTracks]>=fMultBinsMixing[i] && fValues[AliReducedVarManager::kNGlobalTracks]<fMultBinsMixing[i+1]) {
+                     handler->FillEvent(&fLeg1Tracks, &fLeg2Tracks, fValues, AliReducedPairInfo::kJpsiToEE);
+                  }
             }
-        }
-     }
+         }
+      }
+      if (fValues[AliReducedVarManager::kTRDTriggered]) {
+         // TRD trigger mixing separately
+         fMixingHandlerTRD->FillEvent(&fLeg1Tracks, &fLeg2Tracks, fValues, AliReducedPairInfo::kJpsiToEE);
+      }
+
    }
    
    if(fLeg1Tracks.GetEntries() + fLeg2Tracks.GetEntries() > 1) 
@@ -716,9 +771,10 @@ void AliReducedAnalysisFilterTrees::RunSameEventPairing() {
          if(!compatibilityMask) continue;
          AliReducedVarManager::FillPairInfo(leg1Track, leg2Track, fCandidateType, fValues);
 
+         bool isJpsi = false; bool isJpsiFromB = false;
          if (fOptionRunOverMC){
-            bool isJpsi = abs(leg1Track->MCPdg(0))==11 && abs(leg2Track->MCPdg(0))==11 && leg1Track->MCLabel(1)==leg2Track->MCLabel(1) && leg1Track->MCPdg(1)==443;
-            bool isJpsiFromB = isJpsi && ((abs(leg1Track->MCPdg(2))>500 && abs(leg1Track->MCPdg(2))<599) || (abs(leg1Track->MCPdg(2))>5000 && abs(leg1Track->MCPdg(2))<5999));
+            isJpsi = abs(leg1Track->MCPdg(0))==11 && abs(leg2Track->MCPdg(0))==11 && leg1Track->MCLabel(1)==leg2Track->MCLabel(1) && leg1Track->MCPdg(1)==443;
+            isJpsiFromB = isJpsi && ((abs(leg1Track->MCPdg(2))>500 && abs(leg1Track->MCPdg(2))<599) || (abs(leg1Track->MCPdg(2))>5000 && abs(leg1Track->MCPdg(2))<5999));
             fValues[AliReducedVarManager::kPairMCMap] = isJpsi+2*isJpsiFromB;
          }
          if(!IsCandidatePairSelected(fValues)) continue;
@@ -726,6 +782,21 @@ void AliReducedAnalysisFilterTrees::RunSameEventPairing() {
 
          TClonesArray& pairs = *(fFilteredEvent->fCandidates);
          AliReducedPairInfo* candidatePair = new (pairs[fFilteredEvent->fNV0candidates[1]]) AliReducedPairInfo();
+
+         if (fOptionRunOverMC && isJpsiFromB) {
+            AliReducedBaseTrack* jpsimother = FindTrackByLabel(leg1Track->MCLabel(2), kTRUE);
+            if (jpsimother) {
+               candidatePair->PtMother(jpsimother->Pt());
+               candidatePair->PhiMother(jpsimother->Phi());
+               candidatePair->EtaMother(jpsimother->Eta());
+            }
+         }
+         else {
+            candidatePair->PtMother(0.);
+            candidatePair->PhiMother(0.);
+            candidatePair->EtaMother(0.);
+         }
+
          candidatePair->SetLegIds(leg1Track->TrackId(), leg2Track->TrackId());
          candidatePair->SetFlags(compatibilityMask);
          FillCandidatePairHistograms("Pair_Candidate12", candidatePair, fValues, isAsymmetricDecayChannel);
@@ -802,6 +873,10 @@ void AliReducedAnalysisFilterTrees::FillMultiplicity(Bool_t regions /*= kFALSE*/
       fValues[AliReducedVarManager::kMCNch09] = 0.;
       fValues[AliReducedVarManager::kMCNJpsi] = 0.;
       fValues[AliReducedVarManager::kMCNch] = 0.;
+      fValues[AliReducedVarManager::kMCNchV0acc] = 0.;
+      fValues[AliReducedVarManager::kMCNchV0A] = 0.;
+      fValues[AliReducedVarManager::kMCNchV0C] = 0.;
+      for (int iCh = 0; iCh < 64; iCh++) fValues[AliReducedVarManager::kMCNchV0Channel + iCh] = 0.;
    }
    float phi = phiRef;
    if (regions) {
@@ -884,13 +959,33 @@ void AliReducedAnalysisFilterTrees::FillMultiplicity(Bool_t regions /*= kFALSE*/
             }
          }
 
+         if (!regions && track->IsMCTruth() && track->Charge()) {// Fills V0 channels
+            int phiRegion = track->Phi() * 4 / M_PI;
+            if (track->Eta() < - 1.7 && track->Eta() > -3.7) { // V0C
+               fValues[AliReducedVarManager::kMCNchV0acc] ++;
+               fValues[AliReducedVarManager::kMCNchV0C] ++;
+               if (track->Eta() > -3.7 && track->Eta() < -3.2) fValues[AliReducedVarManager::kMCNchV0Channel + phiRegion] ++;
+               if (track->Eta() > -3.2 && track->Eta() < -2.7) fValues[AliReducedVarManager::kMCNchV0Channel + 8 + phiRegion] ++;
+               if (track->Eta() > -2.7 && track->Eta() < -2.2) fValues[AliReducedVarManager::kMCNchV0Channel + 16 + phiRegion] ++;
+               if (track->Eta() > -2.2 && track->Eta() < -1.7) fValues[AliReducedVarManager::kMCNchV0Channel + 24 + phiRegion] ++;
+            }
+            if (track->Eta() < 5.1 && track->Eta() > 2.8) { // V0A
+               fValues[AliReducedVarManager::kMCNchV0acc] ++;
+               fValues[AliReducedVarManager::kMCNchV0A] ++;
+               if (track->Eta() > 4.5 && track->Eta() < 5.1) fValues[AliReducedVarManager::kMCNchV0Channel + 32 + phiRegion] ++;
+               if (track->Eta() > 3.9 && track->Eta() < 4.5) fValues[AliReducedVarManager::kMCNchV0Channel + 40 + phiRegion] ++;
+               if (track->Eta() > 3.4 && track->Eta() < 3.9) fValues[AliReducedVarManager::kMCNchV0Channel + 48 + phiRegion] ++;
+               if (track->Eta() > 2.8 && track->Eta() < 3.4) fValues[AliReducedVarManager::kMCNchV0Channel + 56 + phiRegion] ++;
+            }
+         }
+
          if (!track->IsMCTruth() && !regions) IsTrackMeasuredMultSelected(track, fValues); // set mult flags, if regions they have already been set
          if ( track->IsMCTruth() && !regions) IsTrackTrueMultSelected(track, fValues);
 
          if (!track->GetMultFlags()) continue;
 
          if(!(track->IsMCTruth())) {
-            int particleWeight = 1;
+            float particleWeight = 1.;
             if (fOptionRunOverMC && fReweightParticleComposition) particleWeight = GetParticleWeight(track);
 
            /* if (fOptionRunOverMC && fSharePCCWeightsBetweenEvents && !regions) { // The additional weights are given to other events
@@ -903,6 +998,13 @@ void AliReducedAnalysisFilterTrees::FillMultiplicity(Bool_t regions /*= kFALSE*/
             // Counting measured tracks
             for (int icut = 0; icut<GetNMeasMultCuts(); icut++) {
                if (track->TestMultFlag(icut)) {
+                  TH2F* hTrackWeights = (TH2F*) fWeightsTrackCuts.At(icut);
+                  float trackWeight = particleWeight * hTrackWeights->GetBinContent(hTrackWeights->FindBin(fValues[AliReducedVarManager::kRunNo], track->Pt()));
+                  int weight = (int) trackWeight;
+                  float rest = trackWeight - weight;
+                  if (gRandom->Rndm() <= rest) weight++;
+
+                  
                   if (!regions && (track->Pt() > fValues[AliReducedVarManager::kPtLeading+icut]) && !fRegionsToMCTruth) { 
                      //Look for leading particle
                      fValues[AliReducedVarManager::kPtLeading+icut] = track->Pt();
@@ -910,27 +1012,27 @@ void AliReducedAnalysisFilterTrees::FillMultiplicity(Bool_t regions /*= kFALSE*/
                      fValues[AliReducedVarManager::kEtaLeading+icut] = track->Eta();
                   }
                   if(!regions) 
-                     fValues[AliReducedVarManager::kNGlobalTracks + icut] += particleWeight;
+                     fValues[AliReducedVarManager::kNGlobalTracks + icut] += weight;
                   else { 
                      // Region to Jpsi
                      float phiIcut = fValues[AliReducedVarManager::kPhiLeading+icut];
                      float delta_phi = abs(track->Phi() - phi);
                      if (phi == fValues[AliReducedVarManager::kPhiLeading]) delta_phi = abs(track->Phi() - phiIcut);
                      if (delta_phi < M_PI/3. || delta_phi > 5*M_PI/3.) 
-                        fValues[AliReducedVarManager::kNGlobalTracksToward+icut] += particleWeight;
+                        fValues[AliReducedVarManager::kNGlobalTracksToward+icut] += weight;
                      if ((delta_phi > M_PI/3. && delta_phi < 2*M_PI/3.) || (delta_phi > 4*M_PI/3. && delta_phi < 5*M_PI/3.)) 
-                        fValues[AliReducedVarManager::kNGlobalTracksTransverse+icut] += particleWeight;
+                        fValues[AliReducedVarManager::kNGlobalTracksTransverse+icut] += weight;
                      if (delta_phi > 2*M_PI/3. && delta_phi < 4*M_PI/3.) 
-                        fValues[AliReducedVarManager::kNGlobalTracksAway+icut] += particleWeight;
+                        fValues[AliReducedVarManager::kNGlobalTracksAway+icut] += weight;
 
                      // Region to leading
                      float delta_phi_leading = abs(track->Phi() - phiIcut);
                      if (delta_phi_leading < M_PI/3. || delta_phi_leading > 5*M_PI/3.) 
-                        fValues[AliReducedVarManager::kNGlobalTracksToward + AliReducedVarManager::kNMaxCutsGlobalTracks + icut] += particleWeight;
+                        fValues[AliReducedVarManager::kNGlobalTracksToward + AliReducedVarManager::kNMaxCutsGlobalTracks + icut] += weight;
                      if ((delta_phi_leading > M_PI/3. && delta_phi_leading < 2*M_PI/3.) || (delta_phi_leading > 4*M_PI/3. && delta_phi_leading < 5*M_PI/3.)) 
-                        fValues[AliReducedVarManager::kNGlobalTracksTransverse + AliReducedVarManager::kNMaxCutsGlobalTracks + icut] += particleWeight;
+                        fValues[AliReducedVarManager::kNGlobalTracksTransverse + AliReducedVarManager::kNMaxCutsGlobalTracks + icut] += weight;
                      if (delta_phi_leading > 2*M_PI/3. && delta_phi_leading < 4*M_PI/3.)
-                        fValues[AliReducedVarManager::kNGlobalTracksAway + AliReducedVarManager::kNMaxCutsGlobalTracks + icut] += particleWeight;
+                        fValues[AliReducedVarManager::kNGlobalTracksAway + AliReducedVarManager::kNMaxCutsGlobalTracks + icut] += weight;
                   }
                }
             } 
@@ -938,7 +1040,12 @@ void AliReducedAnalysisFilterTrees::FillMultiplicity(Bool_t regions /*= kFALSE*/
 
          if(track->IsMCTruth()) { 
             int particleWeight = 1;
-            if (fOptionRunOverMC && fReweightParticleComposition) particleWeight = GetParticleWeight(track);
+            if (fOptionRunOverMC && fReweightParticleComposition) {
+               float weight = GetParticleWeight(track);
+               particleWeight = (int) weight;
+               float rest = weight - particleWeight;
+               if (gRandom->Rndm() <= rest) particleWeight++;
+            }
 
             /*if (fOptionRunOverMC && fSharePCCWeightsBetweenEvents && !regions) { // The additional weights are given to other events
                if (particleWeight != 1) {
@@ -1040,7 +1147,7 @@ void AliReducedAnalysisFilterTrees::FillMultiplicity(Bool_t regions /*= kFALSE*/
 }
 
 //____________________________________________________________________________
-Int_t AliReducedAnalysisFilterTrees::GetParticleWeight(AliReducedTrackInfo* track) {
+Float_t AliReducedAnalysisFilterTrees::GetParticleWeight(AliReducedTrackInfo* track) {
    //
    // Get particle weight for multiplicity calculation in MC
    // The weight depends on pt, species, (multiplicity class)
@@ -1112,11 +1219,8 @@ Int_t AliReducedAnalysisFilterTrees::GetParticleWeight(AliReducedTrackInfo* trac
       imult = fMCParticleCompositionWeights->GetNbinsY();
 
    float weight = fMCParticleCompositionWeights->GetBinContent(iptMC, imult, itype);
-   int intWeight = (int) weight;
-   float rest = weight - intWeight;
-   if (gRandom->Rndm() <= rest) intWeight++;
 
-   return intWeight;
+   return weight;
 }
 
 
@@ -1370,11 +1474,21 @@ void AliReducedAnalysisFilterTrees::SetupPair(AliReducedPairInfo* pair, Float_t*
 
    if (fComputeMult) {
       FillMultiplicity(kTRUE, kTRUE, values[AliReducedVarManager::kPhi]);
+      if (GetVertexCorrection()) AliReducedVarManager::CorrectMultiplicityEstimators(fValues);
       for (int icut = 0; icut<GetNMeasMultCuts(); icut++) {
          // Fill mult regions relative to jpsi
-         pair->SetNTracksRegions(fValues[AliReducedVarManager::kNGlobalTracksToward + icut], 0, icut);
-         pair->SetNTracksRegions(fValues[AliReducedVarManager::kNGlobalTracksTransverse + icut], 1, icut);
-         pair->SetNTracksRegions(fValues[AliReducedVarManager::kNGlobalTracksAway + icut], 2, icut);
+         int kCorrectedMultToward = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracksToward + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracksToward + icut;
+         int kCorrectedMultTransverse = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracksTransverse + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracksTransverse + icut;         
+         int kCorrectedMultAway = GetVertexCorrection() ? AliReducedVarManager::GetCorrectedMultiplicity(AliReducedVarManager::kNGlobalTracksAway + icut, AliReducedVarManager::kVertexCorrection2D, 
+                                                            AliReducedVarManager::kMaximumMultiplicity, AliReducedVarManager::kPoissonSmearing)
+                                                          : AliReducedVarManager::kNGlobalTracksAway + icut;
+         pair->SetNTracksRegions(fValues[kCorrectedMultToward], 0, icut);
+         pair->SetNTracksRegions(fValues[kCorrectedMultTransverse], 1, icut);
+         pair->SetNTracksRegions(fValues[kCorrectedMultAway], 2, icut);
       }
    }
 }
@@ -1442,6 +1556,7 @@ void AliReducedAnalysisFilterTrees::Finish() {
 
    if(fOptionRunMixing && !fOptionRunOverMC) {
      fMixingHandler->RunLeftoverMixing(AliReducedPairInfo::kJpsiToEE);
+     fMixingHandlerTRD->RunLeftoverMixing(AliReducedPairInfo::kJpsiToEE);
      if(fOptionRunMixingMult) { // Mixed event in multiplicity bins
         AliMixingHandler* handler;
         TIter nextHandler(&fMixingHandlerMult); 
@@ -1562,6 +1677,7 @@ void AliReducedAnalysisFilterTrees::LoopOverMCTracks(Int_t trackArray /*=1*/) {
       UInt_t motherDecisions = CheckMotherMCTruth(mother);
       if(!motherDecisions) continue;
 
+
       // find the jpsi daughters (needed to compute 2-track properties like the polarization, etc.)
       Int_t daughter1Label = 0; Int_t daughter2Label = 0;
       FindJpsiTruthLegs(mother, daughter1Label, daughter2Label); // if mother does not decay to dielectron, daughter1Label or daughter2Label is 0
@@ -1572,6 +1688,11 @@ void AliReducedAnalysisFilterTrees::LoopOverMCTracks(Int_t trackArray /*=1*/) {
       // reset track variables and fill info
       for(Int_t i=AliReducedVarManager::kNEventVars; i<AliReducedVarManager::kNTrackVars; ++i) fValues[i]=-9999.;
       AliReducedVarManager::FillMCTruthInfo(mother, fValues, daughter1, daughter2);
+
+      // Find the jpsi mother
+      AliReducedBaseTrack* jpsimother = FindTrackByLabel(mother->MCLabel(1), kTRUE);
+      if (jpsimother) fValues[AliReducedVarManager::kPtMotherMC] = jpsimother->Pt();
+
       // loop over jpsi mother selections and fill histograms before the kine cuts on electrons
       for(Int_t iCut = 0; iCut < fJpsiMotherMCcuts.GetEntries(); ++iCut) {
          if(!(motherDecisions & (UInt_t(1)<<iCut)))  continue;

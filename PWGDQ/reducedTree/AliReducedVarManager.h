@@ -190,6 +190,7 @@ class AliReducedVarManager : public TObject {
   enum SmearingMethods {
    kNoSmearing=0,
    kPoissonSmearing,
+   kRounding,
    kNSmearingMethods
   };
 
@@ -359,8 +360,11 @@ class AliReducedVarManager : public TObject {
     kNGlobalTracks,                     // Filled only when event is accepted, else -999
                                         // Max. 8 possible cutsets
     kNGlobalTracksToward = kNGlobalTracks + kNMaxCutsGlobalTracks,   //regions to Jpsi/randomphi and regions to leading pt
+    kNGlobalTracksToward2Leading = kNGlobalTracksToward + kNMaxCutsGlobalTracks,
     kNGlobalTracksTransverse = kNGlobalTracksToward + 2*kNMaxCutsGlobalTracks,
+    kNGlobalTracksTransverse2Leading = kNGlobalTracksTransverse + kNMaxCutsGlobalTracks,
     kNGlobalTracksAway = kNGlobalTracksTransverse + 2*kNMaxCutsGlobalTracks,
+    kNGlobalTracksAway2Leading = kNGlobalTracksAway + kNMaxCutsGlobalTracks,
     kVZEROTotalMult = kNGlobalTracksAway + 2*kNMaxCutsGlobalTracks,
     kVZEROATotalMult,
     kVZEROCTotalMult,
@@ -377,6 +381,8 @@ class AliReducedVarManager : public TObject {
     kSDDandSSDclusters,                    // number of clusters in the SDD and SSD layers
     kEventMixingId,     // Id of the event mixing category 
     // VZERO event plane related variables
+    kMinVZEROAC,
+    kVZEROFlattenicity,
     kVZEROCurrentChannel,         // current VZERO channel
     kVZEROCurrentChannelMult,     // current VZERO channel multiplicity
     kVZEROCurrentChannelMultCalib,  // current VZERO channel calibrated multiplicity
@@ -489,6 +495,7 @@ class AliReducedVarManager : public TObject {
     kINT7orSemiCentTriggered,
     kHighMultV0Triggered,
     kHighMultSPDTriggered,
+    kTRDTriggered,
     kEMCEGATriggered,
     kEMCEGAHighTriggered,
     kEtaBinForSPDtracklets,
@@ -504,7 +511,11 @@ class AliReducedVarManager : public TObject {
     kMCNchNegSide=kMCNch09Transverse+2,                     // number of primary charged particles in the MC, in -1<eta<0
     kMCNchPosSide,                     // number of primary charged particles in the MC, in 0<eta<1
     kMCNchSPDacc,                       // number of primary charged particles in the MC, in |eta|<1 but limited to the SPD acceptance
-    kMCNJpsi,                           // number of Jpsi in the event in |y|<0.9 (+1: Prompt Jpsi, +2: NonPrompt Jpsi)
+    kMCNchV0acc,
+    kMCNchV0A,
+    kMCNchV0C,
+    kMCNchV0Channel,
+    kMCNJpsi=kMCNchV0Channel+64,                           // number of Jpsi in the event in |y|<0.9 (+1: Prompt Jpsi, +2: NonPrompt Jpsi)
     kPhiJpsiMCTruth = kMCNJpsi+3,       // keep it to define MCTruth regions
     kDiffNchSPDtrklts,
     kDiffNchSPDaccSPDtrklts,
@@ -523,6 +534,7 @@ class AliReducedVarManager : public TObject {
     kPtMC,
     kPt_weight = kPtMC + 2,    //kPTMC + 1 is filled for every MC Jpsi, kPtMC only when the particle is detected
     kPtMCfromLegs,             // MC truth pt computed using the decay leg kinematics
+    kPtMotherMC,
     kP,      
     kPMC,
     kPMCfromLegs,
@@ -937,6 +949,8 @@ class AliReducedVarManager : public TObject {
   //static void SetImpParCorrGraphs(Float_t magField, TGraph* dcaxyold = nullptr, TGraph* dcaxynew = nullptr, TGraph* dcazold = nullptr, TGraph* dcaznew = nullptr);
   static TString GetPeriodFromRunNumber(int runNo);
   static float GetFieldFromRunNumber(int runNo);
+  static void CorrectMultiplicityEstimators(Float_t* values);
+  static void SetReferenceValue(Int_t estimator, Int_t reference, float value);
 
  private:
   static Int_t     fgCurrentRunNumber;               // current run number

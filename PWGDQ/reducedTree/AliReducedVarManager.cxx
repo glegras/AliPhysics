@@ -532,9 +532,9 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
     // VZERO calibration
     if(fgVZEROCalibrationPath.Data()[0]!='\0') {
        cout << "AliReducedVarManager::Info  Attempting to load VZERO calibration and/or recentering histograms from path: " << endl << fgVZEROCalibrationPath.Data() << endl;
-      TFile* calibFile = TFile::Open(Form("%s/000%d/dstAnalysisHistograms.root", fgVZEROCalibrationPath.Data(), fgCurrentRunNumber));
-      THashList* mainList = (THashList*)calibFile->Get("jpsi2eeHistos");
-      THashList* calibList = (THashList*)mainList->FindObject("Event_AfterCuts");
+      TFile* calibFile = TFile::Open(Form("%s/%d/AnalysisHistograms_Jpsi2ee.root", fgVZEROCalibrationPath.Data(), fgCurrentRunNumber));
+      THashList* mainList = calibFile ? (THashList*) calibFile->Get("Histos") : nullptr;
+      THashList* calibList = mainList ? (THashList*) mainList->FindObject("Event_AfterCuts_MB") : nullptr;
       if(!calibList) {
          cout << "AliReducedVarManager::Info  Cannot open calibration file for run " << fgCurrentRunNumber << endl;
          cout << "                        Will run uncalibrated and not-recentered!" << endl;
@@ -542,12 +542,13 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
          fgOptionRecenterVZEROqVec = kFALSE;
          fgOptionRecenterTPCqVec = kFALSE;
       }
-      cout << "AliReducedVarManager::Info  Loading VZERO calibration and/or recentering parameters for run " << fgCurrentRunNumber << endl;
       if(fgOptionCalibrateVZEROqVec) {
+        cout << "AliReducedVarManager::Info  Loading VZERO calibration and/or recentering parameters for run " << fgCurrentRunNumber << endl;
         for(Int_t iCh=0; iCh<64; ++iCh) {
            
            fgAvgVZEROChannelMult[iCh] = (TProfile2D*)calibList->FindObject(Form("VZEROmult_ch%d_VtxCent_prof", iCh))->Clone(Form("run%d_ch%d", fgCurrentRunNumber, iCh));
-           fgAvgVZEROChannelMult[iCh]->SetDirectory(0x0);
+           if (fgAvgVZEROChannelMult[iCh]) fgAvgVZEROChannelMult[iCh]->SetDirectory(0x0);
+           else std::cout << "AliReducedVarManager::Info VZERO calibration maps are absent" << std::endl;
         }
       }
       if(fgOptionRecenterVZEROqVec){
@@ -569,7 +570,7 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
          fgTPCqVecRecentering[1]->SetDirectory(0x0);
          
       }
-      calibFile->Close();
+      if (calibFile) calibFile->Close();
     }
 
     if(fgUsedVars[kRunID] && fgRunNumbers.size() && fgRunID < 0  ){
@@ -617,7 +618,10 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
           if(fillGlobal){
             fgRefMultVsVtxGlobal [iEstimator][iReference] = refVsVtxGlobal;
             fgRefMultVsRun       [iEstimator][iReference] = refVsRun;
-            fgRefMultVsVtxAndRun [iEstimator][iReference] = refVsVtxAndRun;
+            if ( fgRefMultVsVtxAndRun [iEstimator][iReference] == 0.) {
+              // Otherwise it has already been set
+              fgRefMultVsVtxAndRun [iEstimator][iReference] = refVsVtxAndRun;
+            }
           }
         }
       }
@@ -652,6 +656,7 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
   values[kINT7orCentTriggered]  = (event->TriggerMask() & kINT7) | (event->TriggerMask() & kCentral) ?1:0;
   values[kINT7orSemiCentTriggered] = (event->TriggerMask() & kINT7) | (event->TriggerMask() & kSemiCentral) ?1:0;
   values[kTRDTriggeredType]     = event->TRDfired();
+  values[kTRDTriggered]     = (event->TriggerMask() & kTRD);
   values[kHighMultV0Triggered]  = (event->TriggerMask() & kHighMultV0) ?1:0;
   values[kHighMultSPDTriggered]  = (event->TriggerMask() & kHighMultSPD) ?1:0;
   values[kEMCEGATriggered]      = event->TriggerMask() & kEMCEGA ?1:0;
@@ -664,6 +669,7 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
   if (event->TriggerMask() & kINT7) event->SetEventTag(AliReducedBaseEvent::kIsMBTriggered);
   if (event->TriggerMask() & kHighMultV0) event->SetEventTag(AliReducedBaseEvent::kIsHMTriggered);
   if (event->TriggerMask() & kHighMultSPD) event->SetEventTag(AliReducedBaseEvent::kIsHMSPDTriggered);
+  if (event->TriggerMask() & kTRD) event->SetEventTag(AliReducedBaseEvent::kIsTRDTriggered);
 
   values[kIsPhysicsSelection]   = (event->IsPhysicsSelection() ? 1.0 : 0.0);
   values[kIsSPDPileup]          = event->IsSPDPileup();
@@ -740,6 +746,7 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
   values[ kVZEROATotalMult ] = event->MultVZEROA();
   values[ kVZEROCTotalMult ] = event->MultVZEROC();
   values[ kVZEROTotalMult  ] = event->MultVZERO();
+  values[ kMinVZEROAC ]      = std::min(values[ kVZEROATotalMult ], values[ kVZEROCTotalMult ]);
   
   values[ kVZEROATotalMultFromChannels ] = event->MultVZEROA(kTRUE);
   values[ kVZEROCTotalMultFromChannels ] = event->MultVZEROC(kTRUE);
@@ -762,101 +769,6 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
     values[ kSPDntrackletsEtaBin+ieta ] = event->SPDntracklets(ieta);
     if( ieta > 7 && ieta < 24 ) values[ kSPDntracklets08 ] += event->SPDntracklets(ieta);
     if( ieta < 8 || ieta > 23 ) values[ kSPDntrackletsOuterEta ] += event->SPDntracklets(ieta);
-  }
-
-
-  for( Int_t iEstimator = 0; iEstimator < kNMultiplicityEstimators; ++iEstimator){
-    Int_t estimator = kMultiplicity + iEstimator;
-    if( fgAvgMultVsVtxAndRun[iEstimator] ){
-      Int_t vtxBin = fgAvgMultVsVtxAndRun[iEstimator]->GetYaxis()->FindBin( values[kVtxZ] );
-      Int_t runBin = fgAvgMultVsVtxAndRun[iEstimator]->GetXaxis()->FindBin( values[kRunID] );
-      Double_t multRaw = values[ estimator ];
-      for( Int_t iCorrection = 0; iCorrection < kNCorrections; ++iCorrection  ){
-        for(Int_t iReference = 0 ; iReference <  kNReferenceMultiplicities; ++iReference ){
-          Int_t indexNotSmeared = GetCorrectedMultiplicity( estimator, iCorrection, iReference, kNoSmearing );
-          Int_t indexSmeared    = GetCorrectedMultiplicity( estimator, iCorrection, iReference, kPoissonSmearing );
-          Double_t multCorr        = multRaw;
-          Double_t multCorrSmeared = multRaw;
-    // apply vertex and gain loss correction simultaneously
-          if( iCorrection == kVertexCorrection2D  ){
-            Double_t localAvg = fgAvgMultVsVtxAndRun[iEstimator]->GetBinContent( runBin, vtxBin );
-            Double_t refMult  = fgRefMultVsVtxAndRun[iEstimator][iReference];
-            multCorr *=  localAvg ?  refMult / localAvg : 1.;
-            Double_t deltaM =  localAvg ?  multRaw * ( refMult/localAvg - 1) : 0.;
-            multCorrSmeared += (deltaM>0 ? 1. : -1.) * gRandom->Poisson(TMath::Abs(deltaM));
-          }
-          else{
-    // first apply vertex correction
-            Double_t localAvgVsVtx , refMultVsVtx  ;
-            switch( iCorrection ){
-              case kVertexCorrectionGlobal:
-              case kVertexCorrectionGlobalGainLoss:
-                localAvgVsVtx = fgAvgMultVsVtxGlobal[iEstimator]->GetBinContent( vtxBin );
-                refMultVsVtx  = fgRefMultVsVtxGlobal[iEstimator][iReference];
-                break;
-              case kVertexCorrectionRunwise:
-              case kVertexCorrectionRunwiseGainLoss:
-                localAvgVsVtx = fgAvgMultVsVtxRunwise[iEstimator]->GetBinContent( vtxBin );
-                refMultVsVtx  = fgRefMultVsVtxRunwise[iEstimator][iReference];
-                break;
-              default:
-                localAvgVsVtx = 0.;
-                refMultVsVtx  = 0.;
-                break;  
-            }
-            multCorr        *= localAvgVsVtx > 0. ? refMultVsVtx / localAvgVsVtx : 1.;
-            Double_t deltaM  = localAvgVsVtx > 0. ? multRaw  * ( refMultVsVtx/localAvgVsVtx - 1) : 0.;
-            multCorrSmeared += (deltaM>0 ? 1. : -1.) * gRandom->Poisson(TMath::Abs(deltaM));
-    // then apply gain loss correction
-            if( iCorrection == kVertexCorrectionGlobalGainLoss || 
-                iCorrection == kVertexCorrectionRunwiseGainLoss || 
-                iCorrection == kGainLossCorrection   ){
-              Double_t localAvgVsRun = fgAvgMultVsRun[iEstimator]->GetBinContent( runBin );
-              Double_t refMultVsRun  = fgRefMultVsRun[iEstimator][iReference];
-              multCorr        *= localAvgVsRun ? refMultVsRun / localAvgVsRun : 1.;
-              deltaM           = localAvgVsRun ? multCorrSmeared  * ( refMultVsRun/localAvgVsRun - 1) : 0;
-              multCorrSmeared += (deltaM>0 ? 1. : -1.) * gRandom->Poisson(TMath::Abs(deltaM));
-            }
-          }
-          values[ indexNotSmeared ] = multCorr;
-          values[ indexSmeared ]    = multCorrSmeared;
-          fgUsedVars [indexNotSmeared] = kTRUE;
-          fgUsedVars [indexSmeared] = kTRUE;
-        }
-      }
-    }
-    else if( ( estimator == kVZEROACTotalMult && fgAvgMultVsVtxAndRun[kVZEROATotalMult-kMultiplicity] && fgAvgMultVsVtxAndRun[kVZEROCTotalMult-kMultiplicity]  )  
-      || (estimator == kSPDnTracklets10EtaVtxCorr && fgAvgMultVsVtxAndRun[kSPDntrackletsEtaBin-kMultiplicity] ) ){
-      for( Int_t iCorrection = 0; iCorrection < kNCorrections; ++iCorrection  ){
-        for(Int_t iReference = 0 ; iReference <  kNReferenceMultiplicities; ++iReference ){
-          Int_t indexNotSmeared = GetCorrectedMultiplicity( estimator, iCorrection, iReference, kNoSmearing );
-          Int_t indexSmeared    = GetCorrectedMultiplicity( estimator, iCorrection, iReference, kPoissonSmearing );
-          values[indexNotSmeared] = 0.;
-          values[indexSmeared] = 0.;
-          if( estimator == kSPDnTracklets10EtaVtxCorr ){
-            for( Int_t ieta=6; ieta<26; ++ieta ) {
-              Int_t vtxBin = fgAvgMultVsVtxAndRun[kSPDntrackletsEtaBin+ieta-kMultiplicity]->GetYaxis()->FindBin( values[kVtxZ] );
-              if( fgAvgMultVsVtxGlobal[kSPDntrackletsEtaBin+ieta-kMultiplicity]->GetBinContent( vtxBin ) > .3 ){
-                Int_t indexBinNotSmeared = GetCorrectedMultiplicity( kSPDntrackletsEtaBin+ieta, iCorrection, iReference, kNoSmearing );
-                Int_t indexBinSmeared    = GetCorrectedMultiplicity( kSPDntrackletsEtaBin+ieta, iCorrection, iReference, kPoissonSmearing );
-                if( fgUsedVars[indexBinNotSmeared]) values[ indexNotSmeared ] += values[ indexBinNotSmeared ];
-                if( fgUsedVars[indexBinSmeared]) values[ indexSmeared ] += values[ indexBinSmeared ];
-              }
-            }
-          }
-          else{
-            Int_t indexAnotSmeared = GetCorrectedMultiplicity( kVZEROATotalMult, iCorrection, iReference, kNoSmearing );
-            Int_t indexCnotSmeared = GetCorrectedMultiplicity( kVZEROCTotalMult, iCorrection, iReference, kNoSmearing );
-
-            Int_t indexAsmeared = GetCorrectedMultiplicity( kVZEROATotalMult, iCorrection, iReference, kPoissonSmearing );
-            Int_t indexCsmeared = GetCorrectedMultiplicity( kVZEROCTotalMult, iCorrection, iReference, kPoissonSmearing );
-
-            values[ indexNotSmeared ] = values[ indexAnotSmeared ] + values[ indexCnotSmeared ];
-            values[ indexSmeared ]    = values[ indexAsmeared ]    + values[ indexCsmeared ];
-          }
-        }
-      }
-    }
   }
 
   fgUsedVars[kNTracksITSoutVsSPDtracklets] = kTRUE;  
@@ -930,14 +842,14 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
   if(fgUsedVars[kNTPCclustersFromPileupRelative] && values[kNTPCclusters]>0.0)
      values[kNTPCclustersFromPileupRelative] = values[kNTPCclustersFromPileup] / tpcClustersExpectationWOpileup;
   
-  if(fgUsedVars[kVZEROQvecX+0*6+1] || fgUsedVars[kVZEROQvecY+0*6+1] || fgUsedVars[kVZERORP+0*6+1]) {
-    Double_t qvecVZEROA[EVENTPLANE::fgkNMaxHarmonics][2] = {{0.0}};
-    Double_t qvecVZEROC[EVENTPLANE::fgkNMaxHarmonics][2] = {{0.0}};
+
+  Float_t calibVZEROMult[64] = {0.};
+  Float_t refMult=0;
+
+
+  if(fgUsedVars[kVZEROQvecX+0*6+1] || fgUsedVars[kVZEROQvecY+0*6+1] || fgUsedVars[kVZERORP+0*6+1] || fgUsedVars[kVZEROFlattenicity]) {
     if(fgOptionCalibrateVZEROqVec && fgAvgVZEROChannelMult[0]) {
-       Float_t calibVZEROMult[64] = {0.};
-       Float_t refMult=0;
-      for(Int_t ich=0;ich<64;++ich) fgUsedVars[kVZEROChannelMultCalib+ich] = kTRUE; 
-       
+      for(Int_t ich=0;ich<64;++ich) fgUsedVars[kVZEROChannelMultCalib+ich] = kTRUE;       
       for(Int_t iCh=0; iCh<64; ++iCh) {
          if(event->MultChannelVZERO(iCh)>=fgkVZEROminMult) {
                          
@@ -949,16 +861,38 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
             calibVZEROMult[iCh] = event->MultChannelVZERO(iCh) / (avMult>1.0e-6 ? avMult : 1.0)*refMult;
             values[kVZEROChannelMultCalib+iCh]=calibVZEROMult[iCh];
             
-          //  cout<<"V0 channel"<<" "<<iCh<<" "<<"Reference Channel "<<refCh<<" "<<"Reference multiplicity"<<refMult<<"Avg mult"<<avMult<<" "<<values[kVZEROChannelMult+iCh]<<" "<<values[kVZEROChannelMultCalib+iCh]<<endl;
-            
+          //  cout<<"V0 channel"<<" "<<iCh<<" "<<"Reference Channel "<<refCh<<" "<<"Reference multiplicity"<<refMult<<"Avg mult"<<avMult<<" "<<values[kVZEROChannelMult+iCh]<<" "<<values[kVZEROChannelMultCalib+iCh]<<endl;  
          }
          else
              fgUsedVars[kVZEROChannelMultCalib+iCh] = kFALSE; // will not be filled in histograms by the histogram manager
       }
+    }
+  }
+
+  if (fgUsedVars[kVZEROFlattenicity]) {
+    float avg = 0.; float std = 0.;
+    if(fgOptionCalibrateVZEROqVec && fgAvgVZEROChannelMult[0]) {
+      for(Int_t iCh=0; iCh<64; ++iCh) {
+        avg += calibVZEROMult[iCh]; std += calibVZEROMult[iCh] * calibVZEROMult[iCh];
+      }
+    }
+    else {
+      for(Int_t iCh=0; iCh<64; ++iCh) {
+        avg += event->MultChannelVZERO(iCh); std += event->MultChannelVZERO(iCh) * event->MultChannelVZERO(iCh);
+      }
+    }
+    avg /= 64.; std = sqrt(std/64. - avg*avg);
+    values[kVZEROFlattenicity] = std/sqrt(avg);
+  }
+
+
+
+  if(fgUsedVars[kVZEROQvecX+0*6+1] || fgUsedVars[kVZEROQvecY+0*6+1] || fgUsedVars[kVZERORP+0*6+1]) {
+    Double_t qvecVZEROA[EVENTPLANE::fgkNMaxHarmonics][2] = {{0.0}};
+    Double_t qvecVZEROC[EVENTPLANE::fgkNMaxHarmonics][2] = {{0.0}};
+    if(fgOptionCalibrateVZEROqVec && fgAvgVZEROChannelMult[0]) {
       event->GetVZEROQvector(qvecVZEROA, EVENTPLANE::kVZEROA, calibVZEROMult);
-      event->GetVZEROQvector(qvecVZEROC, EVENTPLANE::kVZEROC, calibVZEROMult);
-      
-     
+      event->GetVZEROQvector(qvecVZEROC, EVENTPLANE::kVZEROC, calibVZEROMult); 
     }
     else {
       event->GetVZEROQvector(qvecVZEROA, EVENTPLANE::kVZEROA);
@@ -1300,6 +1234,116 @@ void AliReducedVarManager::FillEventInfo(BASEEVENT* baseEvent, Float_t* values, 
   values[kMultEstimatorPercentileSPDTracklets] = event->MultEstimatorPercentileSPDTracklets();
   values[kMultEstimatorPercentileRefMult05]    = event->MultEstimatorPercentileRefMult05();
   values[kMultEstimatorPercentileRefMult08]    = event->MultEstimatorPercentileRefMult08();
+
+}
+
+void AliReducedVarManager::SetReferenceValue(Int_t estimator, Int_t reference, float value) {
+  fgRefMultVsVtxAndRun [estimator - kMultiplicity][reference] = value;
+}
+
+void AliReducedVarManager::CorrectMultiplicityEstimators(Float_t* values) {
+
+  for( Int_t iEstimator = 0; iEstimator < kNMultiplicityEstimators; ++iEstimator){
+    Int_t estimator = kMultiplicity + iEstimator;
+    if( fgAvgMultVsVtxAndRun[iEstimator] ){
+      Int_t vtxBin = fgAvgMultVsVtxAndRun[iEstimator]->GetYaxis()->FindBin( values[kVtxZ] );
+      Int_t runBin = fgAvgMultVsVtxAndRun[iEstimator]->GetXaxis()->FindBin( values[kRunNo] );
+      Double_t multRaw = values[ estimator ];
+      for( Int_t iCorrection = 0; iCorrection < kNCorrections; ++iCorrection  ){
+        for(Int_t iReference = 0 ; iReference <  kNReferenceMultiplicities; ++iReference ){
+          Int_t indexNotSmeared = GetCorrectedMultiplicity( estimator, iCorrection, iReference, kNoSmearing );
+          Int_t indexRounded    = GetCorrectedMultiplicity( estimator, iCorrection, iReference, kRounding );
+          Int_t indexSmeared    = GetCorrectedMultiplicity( estimator, iCorrection, iReference, kPoissonSmearing );
+          Double_t multCorr        = multRaw;
+          Double_t multCorrSmeared = multRaw;
+    // apply vertex and gain loss correction simultaneously
+          if( iCorrection == kVertexCorrection2D  ){
+            Double_t localAvg = fgAvgMultVsVtxAndRun[iEstimator]->GetBinContent( runBin, vtxBin );
+            Double_t refMult  = fgRefMultVsVtxAndRun[iEstimator][iReference];
+            multCorr *=  localAvg ?  refMult / localAvg : 1.;
+            Double_t deltaM =  localAvg ?  multRaw * ( refMult/localAvg - 1) : 0.;
+            multCorrSmeared += (deltaM>0 ? 1. : -1.) * gRandom->Poisson(TMath::Abs(deltaM));
+          }
+          else{
+    // first apply vertex correction
+            Double_t localAvgVsVtx , refMultVsVtx  ;
+            switch( iCorrection ){
+              case kVertexCorrectionGlobal:
+              case kVertexCorrectionGlobalGainLoss:
+                localAvgVsVtx = fgAvgMultVsVtxGlobal[iEstimator]->GetBinContent( vtxBin );
+                refMultVsVtx  = fgRefMultVsVtxGlobal[iEstimator][iReference];
+                break;
+              case kVertexCorrectionRunwise:
+              case kVertexCorrectionRunwiseGainLoss:
+                localAvgVsVtx = fgAvgMultVsVtxRunwise[iEstimator]->GetBinContent( vtxBin );
+                refMultVsVtx  = fgRefMultVsVtxRunwise[iEstimator][iReference];
+                break;
+              default:
+                localAvgVsVtx = 0.;
+                refMultVsVtx  = 0.;
+                break;  
+            }
+            multCorr        *= localAvgVsVtx > 0. ? refMultVsVtx / localAvgVsVtx : 1.;
+            Double_t deltaM  = localAvgVsVtx > 0. ? multRaw  * ( refMultVsVtx/localAvgVsVtx - 1) : 0.;
+            multCorrSmeared += (deltaM>0 ? 1. : -1.) * gRandom->Poisson(TMath::Abs(deltaM));
+    // then apply gain loss correction
+            if( iCorrection == kVertexCorrectionGlobalGainLoss || 
+                iCorrection == kVertexCorrectionRunwiseGainLoss || 
+                iCorrection == kGainLossCorrection   ){
+              Double_t localAvgVsRun = fgAvgMultVsRun[iEstimator]->GetBinContent( runBin );
+              Double_t refMultVsRun  = fgRefMultVsRun[iEstimator][iReference];
+              multCorr        *= localAvgVsRun ? refMultVsRun / localAvgVsRun : 1.;
+              deltaM           = localAvgVsRun ? multCorrSmeared  * ( refMultVsRun/localAvgVsRun - 1) : 0;
+              multCorrSmeared += (deltaM>0 ? 1. : -1.) * gRandom->Poisson(TMath::Abs(deltaM));
+            }
+          }
+          values[ indexNotSmeared ] = multCorr;
+          values[ indexSmeared ]    = multCorrSmeared;
+          int intMultCorr = (int) multCorr;
+          float rest = multCorr - intMultCorr;
+          if (gRandom->Rndm() <= rest) intMultCorr++;
+          values[ indexRounded ] = intMultCorr;
+          fgUsedVars [indexNotSmeared] = kTRUE;
+          fgUsedVars [indexSmeared] = kTRUE;
+          fgUsedVars [indexRounded] = kTRUE;
+        }
+      }
+    }
+    else if( ( estimator == kVZEROACTotalMult && fgAvgMultVsVtxAndRun[kVZEROATotalMult-kMultiplicity] && fgAvgMultVsVtxAndRun[kVZEROCTotalMult-kMultiplicity]  )  
+      || (estimator == kSPDnTracklets10EtaVtxCorr && fgAvgMultVsVtxAndRun[kSPDntrackletsEtaBin-kMultiplicity] ) ){
+      for( Int_t iCorrection = 0; iCorrection < kNCorrections; ++iCorrection  ){
+        for(Int_t iReference = 0 ; iReference <  kNReferenceMultiplicities; ++iReference ){
+          Int_t indexNotSmeared = GetCorrectedMultiplicity( estimator, iCorrection, iReference, kNoSmearing );
+          Int_t indexSmeared    = GetCorrectedMultiplicity( estimator, iCorrection, iReference, kPoissonSmearing );
+          values[indexNotSmeared] = 0.;
+          values[indexSmeared] = 0.;
+          if( estimator == kSPDnTracklets10EtaVtxCorr ){
+            for( Int_t ieta=6; ieta<26; ++ieta ) {
+              Int_t vtxBin = fgAvgMultVsVtxAndRun[kSPDntrackletsEtaBin+ieta-kMultiplicity]->GetYaxis()->FindBin( values[kVtxZ] );
+              if( fgAvgMultVsVtxGlobal[kSPDntrackletsEtaBin+ieta-kMultiplicity]->GetBinContent( vtxBin ) > .3 ){
+                Int_t indexBinNotSmeared = GetCorrectedMultiplicity( kSPDntrackletsEtaBin+ieta, iCorrection, iReference, kNoSmearing );
+                Int_t indexBinSmeared    = GetCorrectedMultiplicity( kSPDntrackletsEtaBin+ieta, iCorrection, iReference, kPoissonSmearing );
+                if( fgUsedVars[indexBinNotSmeared]) values[ indexNotSmeared ] += values[ indexBinNotSmeared ];
+                if( fgUsedVars[indexBinSmeared]) values[ indexSmeared ] += values[ indexBinSmeared ];
+              }
+            }
+          }
+          else{
+            Int_t indexAnotSmeared = GetCorrectedMultiplicity( kVZEROATotalMult, iCorrection, iReference, kNoSmearing );
+            Int_t indexCnotSmeared = GetCorrectedMultiplicity( kVZEROCTotalMult, iCorrection, iReference, kNoSmearing );
+
+            Int_t indexAsmeared = GetCorrectedMultiplicity( kVZEROATotalMult, iCorrection, iReference, kPoissonSmearing );
+            Int_t indexCsmeared = GetCorrectedMultiplicity( kVZEROCTotalMult, iCorrection, iReference, kPoissonSmearing );
+
+            values[ indexNotSmeared ] = values[ indexAnotSmeared ] + values[ indexCnotSmeared ];
+            values[ indexSmeared ]    = values[ indexAsmeared ]    + values[ indexCsmeared ];
+          }
+        }
+      }
+    }
+  }
+
+
 
 }
 
@@ -3573,6 +3617,11 @@ void AliReducedVarManager::SetDefaultVarNames() {
   fgVariableNames[kVZEROCurrentChannelMultCalib] = "VZERO channel calibrated multiplicity";   fgVariableUnits[kVZEROCurrentChannelMultCalib] = "";
   fgVariableNames[kVZEROAemptyChannels] = "VZERO-A empty channels"; fgVariableUnits[kVZEROAemptyChannels] = "";
   fgVariableNames[kVZEROCemptyChannels] = "VZERO-C empty channels"; fgVariableUnits[kVZEROCemptyChannels] = "";
+  fgVariableNames[kVZEROFlattenicity] = "V0 flattenicity"; fgVariableUnits[kVZEROCemptyChannels] = "";
+  fgVariableNames[kMCNchV0acc] = "N_{ch} in VZERO acceptance"; fgVariableUnits[kVZEROCemptyChannels] = "";
+  fgVariableNames[kMCNchV0A] = "N_{ch} in VZEROA acceptance"; fgVariableUnits[kVZEROCemptyChannels] = "";
+  fgVariableNames[kMCNchV0C] = "N_{ch} in VZEROC acceptance"; fgVariableUnits[kVZEROCemptyChannels] = "";
+
   for(Int_t ich=0;ich<64;++ich) {
     fgVariableNames[kVZEROChannelMult+ich] = Form("Multiplicity VZERO ch.%d", ich);
     fgVariableUnits[kVZEROChannelMult+ich] = "";
@@ -3582,6 +3631,8 @@ void AliReducedVarManager::SetDefaultVarNames() {
     fgVariableUnits[kVZEROChannelEta+ich] = "";
     fgVariableNames[kVZEROflowV2TPC+ich] = Form("v_{2}^{VZERO-ch%d}{EP,TPC}", ich);
     fgVariableUnits[kVZEROflowV2TPC+ich] = "";
+    fgVariableNames[kMCNchV0Channel+ich] = Form("N_{ch} in VZERO ch.%d acceptance", ich);
+    fgVariableUnits[kMCNchV0Channel+ich] = "";
   }
   for(Int_t ich=0;ich<10;++ich) {
     fgVariableNames[kZDCnEnergyCh+ich] = Form("Energy ZDCn ch.%d", ich);
@@ -4872,5 +4923,5 @@ float AliReducedVarManager::GetFieldFromRunNumber(int runNo) {
    std::cout<<"WARNING: DID NOT FIND MAGNETIC FIELD FOR PERIOD "<<period<<std::endl;
    return 0.;
 }
-
+//
 void AliReducedVarManager::SetDoImpParCorr(Bool_t option, TString path) {fImpParCorr = option; fPathImpParCorr = path;}

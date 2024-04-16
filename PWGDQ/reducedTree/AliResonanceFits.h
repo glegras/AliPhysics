@@ -180,7 +180,10 @@ class AliResonanceFits : public TObject {
   void SetDebugMode(Bool_t option) {fOptionDebug=option; fMatchingIsDone = kFALSE;}
   void SetSignalFromMC(Bool_t option) {fOptionSignalFromMC=option; fMatchingIsDone = kFALSE;}
   void SetDoMeanPt(Bool_t option) {fOptionMeanPt=option;}
-  
+  void SetFitMeanPtAdditionalError(bool option) {fFitMeanPtAdditionalErrors = option;}
+
+  void SetBkgFitFunctionCorr(TH1* hBkgCorr) {fBkgFitFunction_corr = hBkgCorr;}
+
   // set various ranges
   void SetMassFitRange(Double_t min, Double_t max) {fgMassFitRange[0] = min+1.0e-6; fgMassFitRange[1] = max-1.0e-6; fUserEnabledMassFitRange = kTRUE; fMatchingIsDone = kFALSE;}
   void SetPtFitRange(Double_t min, Double_t max) {fgPtFitRange[0] = min+1.0e-6; fgPtFitRange[1] = max-1.0e-6; fUserEnabledPtFitRange = kTRUE; fMatchingIsDone = kFALSE;}
@@ -226,6 +229,7 @@ class AliResonanceFits : public TObject {
   TH1* GetBkgCombinatorial() const {return (fMatchingIsDone ? fBkgCombinatorial : 0x0);}
   TH1* GetResidualBkg() const {return (fMatchingIsDone ? fBkgResidual : 0x0);}
   TH1* GetSignalMC() const {return (fMatchingIsDone ? fSignalMCshape : 0x0);}
+  TH1* GetAlpha() const {return(fMatchingIsDone ? fAlpha : 0x0);}
   
   Int_t GetBkgMethod() const {return fOptionBkgMethod;}
   Int_t GetScalingOption() const {return fOptionScale;}
@@ -281,6 +285,8 @@ class AliResonanceFits : public TObject {
              Bool_t      fOptionScaleSummedBkg;       // if true, run the matching procedure on the summed S+B and bkg (default is false)
              Bool_t      fOptionDebug;                       // if true, construct all possible distributions
              Bool_t      fOptionMeanPt;              //If true, we are doing mean-pt fit: the bkg is scaled by 1-alpha
+             Bool_t fFitMeanPtAdditionalErrors;   // using additional errors from S/(S+B) when fitting mean pt
+
    Bool_t fOptionSignalFromMC;
    // Matching / fit ranges
    // NOTE: Mass and pt ranges used for matching / fitting can in principle be different (a sub-interval only) wrt ranges in fVarLimits
@@ -298,6 +304,7 @@ class AliResonanceFits : public TObject {
    TH1* fBkg;                    //  background projection
    TH1* fSig;                    // signal projection
    static TH1* fAlpha;                  // =S/S+B from previous fit (used for fit of mean pt)
+   static TH1* fBkgFitFunction_corr;     // background fit function can be multiplied by a fit function
 
    TH1* fBkgLikeSign;
    TH1* fBkgLikeSignLeg1;
@@ -307,7 +314,7 @@ class AliResonanceFits : public TObject {
    static TF1* fBkgFitFunction;
    static TF1* fGlobalFitFunction;
    TFitResultPtr fFitResult;                // fit result of the residual fit
-   
+
    /////////////////////////////////
    TH1* fSplusResidualBkg;    //  combinatorial bkg subtracted minv distribution (signal + residual bkg)   
    TH1* fSplusBblind;       //  bkg minv distribution; signal blind (area around signal excluded)   
@@ -327,6 +334,7 @@ class AliResonanceFits : public TObject {
    static TF1*      fSignalFitFunc;            // fit function used to fit the combinatorial bkg subtracted minv distribution
    
     TString fBkgFitOption;              //String used to define fit options for the background function
+
     
    ////////////////////////////////////////////////////
    
@@ -348,6 +356,7 @@ class AliResonanceFits : public TObject {
    static Double_t GlobalFitFunction(Double_t *x, Double_t* par);
    static Double_t GlobalFitFunctionMeanPt(Double_t *x, Double_t* par);
    static Double_t GlobalFitFunctionCrystalBall(Double_t *x, Double_t* par);
+   static void Chi2MeanPt(int &npar, double *gin, double &f, Double_t* par, int iflag);
 
 
    ClassDef(AliResonanceFits, 6);

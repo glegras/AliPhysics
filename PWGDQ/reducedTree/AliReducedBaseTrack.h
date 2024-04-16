@@ -27,6 +27,9 @@ class AliReducedBaseTrack : public TObject {
     Float_t Phi() const;
     Float_t Pt()  const {return (fIsCartesian ? TMath::Sqrt(fP[0]*fP[0]+fP[1]*fP[1]) : fP[0]);}
     Float_t Eta() const;
+    Float_t PhiMother() const {return (fP[4]);}
+    Float_t PtMother()  const {return (fP[3]);}
+    Float_t EtaMother() const {return (fP[5]);}
     Float_t Rapidity(Float_t massAssumption) const;
     Float_t Theta() const;
     Float_t Energy(Float_t massAssumption) const {return TMath::Sqrt(massAssumption*massAssumption+P()*P());}
@@ -69,6 +72,9 @@ class AliReducedBaseTrack : public TObject {
     void   Pt(Float_t pt) {fP[0] = pt; fIsCartesian=kFALSE;}
     void   Phi(Float_t phi) {fP[1] = phi; fIsCartesian=kFALSE;}
     void   Eta(Float_t eta) {fP[2] = eta; fIsCartesian=kFALSE;}
+    void   PtMother(Float_t pt) {fP[3] = pt;}
+    void   PhiMother(Float_t phi) {fP[4] = phi;}
+    void   EtaMother(Float_t eta) {fP[5] = eta;}
     void   PtPhiEta(Float_t pt, Float_t phi, Float_t eta) {fP[0]=pt;fP[1]=phi;fP[2]=eta;fIsCartesian=kFALSE;}
     void   Charge(Int_t ch) {fCharge=ch;}
     void   ResetFlags() {fFlags=0;}
@@ -90,7 +96,7 @@ class AliReducedBaseTrack : public TObject {
    
   protected:
     UShort_t fTrackId;            // track id 
-    Float_t fP[3];         // 3-momentum vector
+    Float_t fP[6];         // 3-momentum vector + 3-momentum vector in pt-phi-eta coordinates for mother (MC)
     Bool_t  fIsCartesian;  // if false then the 3-momentum vector is in spherical coordinates (pt,phi,eta)
     Char_t  fCharge;       // electrical charge
     ULong_t fFlags;        // flags reserved for various operations
@@ -125,7 +131,7 @@ class AliReducedBaseTrack : public TObject {
         
     AliReducedBaseTrack& operator= (const AliReducedBaseTrack &c);
     
-    ClassDef(AliReducedBaseTrack, 7)
+    ClassDef(AliReducedBaseTrack, 8)
 };
 
 //_______________________________________________________________________________

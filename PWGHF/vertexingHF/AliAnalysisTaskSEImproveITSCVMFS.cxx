@@ -526,6 +526,7 @@ void AliAnalysisTaskSEImproveITSCVMFS::UserCreateOutputObjects() {
   fDebugOutput->SetName("debug");
   fDebugNtuple=new TNtuple("fDebugNtuple","Smearing","pdg:ptmc:d0rpo:d0zo:pt1o:sd0rpo:sd0zo:spt1o:d0rpn:d0zn:pt1n:sd0rpn:sd0zn:spt1n:d0rpmc:d0zmc:pt1mc:pullcorr:d0zoinsigma:d0zninsigma:d0rpoinsigma:d0rpninsigma");
   fDebugVars=new Float_t[fDebugNtuple->GetNvar()];
+  std::cout<<"userCreateOutputObject"<<std::endl;
   
   fDebugOutput->Add(fDebugNtuple );
 
@@ -713,6 +714,7 @@ void AliAnalysisTaskSEImproveITSCVMFS::UserExec(Option_t*) {
   AliAODEvent *ev=0x0;
   AliESDEvent *evesd=0x0;
   Double_t bz=0.;
+  std::cout<<"userexec"<<std::endl;
 
   if(fIsAOD) {
     if(!fRunInVertexing) {
@@ -728,6 +730,7 @@ void AliAnalysisTaskSEImproveITSCVMFS::UserExec(Option_t*) {
    }
   }
   else {
+    std::cout<<"esd event here "<<fFilesOpen<<std::endl;
     evesd = dynamic_cast<AliESDEvent*>(InputEvent());
     if (!evesd) {
       AliError("event not found. Nothing done!");
@@ -735,6 +738,7 @@ void AliAnalysisTaskSEImproveITSCVMFS::UserExec(Option_t*) {
     }
     bz=evesd->GetMagneticField();
     if (!fFilesOpen) {	// check (run-once) that files have been opened
+    std::cout<<"opening improver histos"<<std::endl;
     OpenImproverHistos(evesd);
     if (!fFilesOpen) AliFatal("Error in opening improver files !");
    }
@@ -1260,11 +1264,12 @@ void AliAnalysisTaskSEImproveITSCVMFS::SmearTrack(AliVTrack *track,Double_t bz) 
   sd0zn *=1.e-4;
   sd0mrpo*=1.e-4;
   sd0mrpn*=1.e-4;
+  std::cout<<"smearing by "<<(sd0rpo>0. ? (sd0rpn/sd0rpo) : 1.)<<std::endl;
 
   // Apply the smearing
   Double_t d0zo  =param  [1];
   Double_t d0zmc =parammc[1];
-  Double_t d0rpo =param  [0];
+  Double_t d0rpo =param  [0];std::cout<<"old dca: "<<d0rpo<<std::endl;
   Double_t d0rpmc=parammc[0];
   Double_t pt1o  =param  [4];
   Double_t pt1mc =parammc[4];
@@ -1274,7 +1279,7 @@ void AliAnalysisTaskSEImproveITSCVMFS::SmearTrack(AliVTrack *track,Double_t bz) 
   Double_t dd0rpo=d0rpo-d0rpmc;
   Double_t dd0rpn=dd0rpo*fRescaledd0rphi*(sd0rpo>0. ? (sd0rpn/sd0rpo) : 1.);
   Double_t dd0mrpn=TMath::Abs(sd0mrpn)-TMath::Abs(sd0mrpo);
-  Double_t d0rpn =d0rpmc+dd0rpn-dd0mrpn;
+  Double_t d0rpn =d0rpmc+dd0rpn-dd0mrpn;std::cout<<"new dca: "<<d0rpn<<std::endl;
   Double_t d0zoinsigma = 0.;
   if(covar[0] > 0.) d0zoinsigma = d0zo/TMath::Sqrt(covar[2]);
   Double_t d0rpoinsigma = 0.;
@@ -1451,6 +1456,7 @@ Int_t AliAnalysisTaskSEImproveITSCVMFS::PhiBin(Double_t phi) const {
 
 void AliAnalysisTaskSEImproveITSCVMFS::OpenImproverHistos(AliVEvent* event) {
    Int_t run = event->GetRunNumber();
+   std::cout<<"OpenImproverHistos"<<std::endl;
  
    TString lProductionName = "";
    if (!fOverridePeriodName.EqualTo("")) { lProductionName = fOverridePeriodName; } // manual period name if present
@@ -1533,7 +1539,7 @@ void AliAnalysisTaskSEImproveITSCVMFS::OpenImproverHistos(AliVEvent* event) {
   TString pathToFileCurrent = AliDataFile::GetFileName(Form("PWGHF/common/Improver/%s/%s/ITSgraphs_Current.root",lProductionName.Data(),fImproverSuffix.Data()));  // find URI for improver file from CVMFS
 
   Printf(">>> Taking parametrization files for MC from %s",pathToFileCurrent.Data());
-  
+    std::cout<<"path to file current"<<pathToFileCurrent.Data()<<std::endl;
   // Check access to CVMFS (will only be displayed locally)
   if (pathToFileCurrent.IsNull()) {
 	AliFatal("Cannot access data files from CVMFS: please export ALICE_DATA=root://eospublic.cern.ch//eos/experiment/alice/analysis-data and run again");

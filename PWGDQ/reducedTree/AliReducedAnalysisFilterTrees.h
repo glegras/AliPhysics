@@ -36,21 +36,31 @@ public:
       fTrackCuts.Add(cut);
       fMixingHandler->SetNParallelCuts(fMixingHandler->GetNParallelCuts()+1);
       TString histClassNames = fMixingHandler->GetHistClassNames();
+      fMixingHandlerTRD->SetNParallelCuts(fMixingHandlerTRD->GetNParallelCuts()+1);
+      TString histClassNamesTRD = fMixingHandlerTRD->GetHistClassNames();
       if (fPairCuts.GetEntries()>1) {
          histClassNames = "";
+         histClassNamesTRD = "";
          for (Int_t iPairCut=0; iPairCut<fPairCuts.GetEntries(); iPairCut++) {
             for (Int_t iTrackCut=0; iTrackCut<fTrackCuts.GetEntries(); iTrackCut++) {
                histClassNames += Form("PairMEPP_%s_%s;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
                histClassNames += Form("PairMEPM_%s_%s;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
                histClassNames += Form("PairMEMM_%s_%s;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
+               histClassNamesTRD += Form("PairMEPP_%s_%s_TRD;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
+               histClassNamesTRD += Form("PairMEPM_%s_%s_TRD;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
+               histClassNamesTRD += Form("PairMEMM_%s_%s_TRD;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
             }
          }
       } else {
          histClassNames += Form("PairMEPP_%s;", cut->GetName());
          histClassNames += Form("PairMEPM_%s;", cut->GetName());
          histClassNames += Form("PairMEMM_%s;", cut->GetName());
+         histClassNamesTRD += Form("PairMEPP_%s_TRD;", cut->GetName());
+         histClassNamesTRD += Form("PairMEPM_%s_TRD;", cut->GetName());
+         histClassNamesTRD += Form("PairMEMM_%s_TRD;", cut->GetName());
       }
       fMixingHandler->SetHistClassNames(histClassNames.Data());
+      fMixingHandlerTRD->SetHistClassNames(histClassNamesTRD.Data());
    }
 
 
@@ -58,16 +68,22 @@ public:
       // Add pair cut and setup mixing handler
       fPairCuts.Add(cut);  
       fMixingHandler->SetNParallelPairCuts(fMixingHandler->GetNParallelPairCuts()+1);
+      fMixingHandlerTRD->SetNParallelPairCuts(fMixingHandlerTRD->GetNParallelPairCuts()+1);
       if (fPairCuts.GetEntries()>1) {
          TString histClassNamesNew = "";
+         TString histClassNamesNewTRD = "";
          for (Int_t iPairCut=0; iPairCut<fPairCuts.GetEntries(); iPairCut++) {
             for (Int_t iTrackCut=0; iTrackCut<fTrackCuts.GetEntries(); iTrackCut++) {
                histClassNamesNew += Form("PairMEPP_%s_%s;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
                histClassNamesNew += Form("PairMEPM_%s_%s;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
                histClassNamesNew += Form("PairMEMM_%s_%s;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
+               histClassNamesNewTRD += Form("PairMEPP_%s_%s;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
+               histClassNamesNewTRD += Form("PairMEPM_%s_%s;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
+               histClassNamesNewTRD += Form("PairMEMM_%s_%s;", fTrackCuts.At(iTrackCut)->GetName(), fPairCuts.At(iPairCut)->GetName());
             }
          }
          fMixingHandler->SetHistClassNames(histClassNamesNew.Data());
+         fMixingHandlerTRD->SetHistClassNames(histClassNamesNewTRD.Data());
       }
    }
 
@@ -94,7 +110,15 @@ public:
   void SetReweightParticleComposition(Bool_t option) {fReweightParticleComposition = option;}
   void SetSharePCCWeightsBetweenEvents(Bool_t option) {fSharePCCWeightsBetweenEvents = option;}
 
-  void AddMeasuredMultTrackCut(AliReducedInfoCut* cut) {fMeasuredMultTrackCuts.Add(cut);}
+  void AddMeasuredMultTrackCut(AliReducedInfoCut* cut, TH2F* hWeights = nullptr) {
+   fMeasuredMultTrackCuts.Add(cut);
+   if (hWeights) fWeightsTrackCuts.Add(hWeights);
+   else {
+      TH2F* hWeightsTrackCuts = new TH2F(Form("hWeightsTrackCuts_%s", cut->GetName()), "weights", 1, 0, 3e5, 1, 0, 1e3);
+      hWeightsTrackCuts->SetBinContent(1, 1, 1.);
+      fWeightsTrackCuts.Add(hWeightsTrackCuts);
+   }
+  }
   void AddTrueMultTrackCut(AliReducedInfoCut* cut) {fTrueMultTrackCuts.Add(cut);}
   void AddCandidateLeg1PrefilterCut(AliReducedInfoCut* cut) {fLeg1PrefilterCuts.Add(cut);}
   void AddCandidateLeg2PrefilterCut(AliReducedInfoCut* cut) {fLeg2PrefilterCuts.Add(cut);}
@@ -108,11 +132,13 @@ public:
   void SetRegionsToMCTruth(Bool_t option) {fRegionsToMCTruth = option;}
   void SetDefaultRandomPhi(Bool_t option) {fDefaultRandomPhi = option;}
   void SetMinPtLeading(float minpt) {fMinPtLeading = minpt;}
+  void SetVertexCorrection(Bool_t option) {fVtxCorrection = option;}
   
   void SetRunOverMC(Bool_t option) {fOptionRunOverMC = option;};
   // getters
   virtual AliHistogramManager* GetHistogramManager() const {return fHistosManager;}
   virtual AliMixingHandler* GetMixingHandler() const {return fMixingHandler;}
+  virtual AliMixingHandler* GetMixingHandlerTRD() const {return fMixingHandlerTRD;}
   Bool_t GetWriteFilteredTracks() const {return fWriteFilteredTracks;}
   Int_t GetNTrackCuts() const {return fTrackCuts.GetEntries();}
   const Char_t* GetTrackCutName(Int_t i) const {return (i<fTrackCuts.GetEntries() ? fTrackCuts.At(i)->GetName() : "");} 
@@ -143,6 +169,7 @@ public:
   TF1* GetJpsiMassDist() const {return fJpsiMassDist;}
   Bool_t GetMCTruthJpsi2eeOnly() const {return fMCTruthJpsi2eeOnly;}
   Bool_t GetReweightParticleComposition() const {return fReweightParticleComposition;}
+  Bool_t GetVertexCorrection () const {return fVtxCorrection;}
  
  /* void AddLegCandidateMCcut(AliReducedInfoCut* cut) {
      if(fLegCandidatesMCcuts.GetEntries()>=32) return;
@@ -170,6 +197,7 @@ protected:
 
    AliHistogramManager* fHistosManager;   // Histogram manager
    AliMixingHandler*    fMixingHandler;       // mixing handler
+   AliMixingHandler*    fMixingHandlerTRD;       // mixing handler for TRD (event mixing from MB and TRD gives different results)
    TList                fMixingHandlerMult;       // mixing handlers in multiplicity bins
    Float_t                fMultBinsMixing[1000];  // Multiplicity bins for mixing in multiplicity bins
    Int_t                fNMultBinsMixing;   // Number of multiplicity bins for mixing in multiplicity bins
@@ -185,6 +213,7 @@ protected:
    Bool_t fRegionsToMCTruth;    //if true, the regions are defined relative to true particles, else they are defined relative to measured tracks
    Bool_t fDefaultRandomPhi;    //if true, when regions are calculated relative to Jpsi and there is no Jpsi, we choose a random phi, else we take phi leading
    Float_t fMinPtLeading;
+   Bool_t fVtxCorrection;
 
    TF1* fJpsiMassDist;            // Real jpsi mass distribution (Crystal-ball)
    Bool_t fSharePCCWeightsBetweenEvents;
@@ -201,7 +230,9 @@ protected:
    Bool_t fRunCandidatePrefilter;   // if true, run a prefilter on the selected legs
    Bool_t fRunCandidatePrefilterOnSameCharge;   // default FALSE (unlike charged pairs only);
                                                                 // if true, run the prefilter on same charge pairs also;
+   
    TList fMeasuredMultTrackCuts;            // cuts for tracks for determination of measured multiplicity
+   TList fWeightsTrackCuts;             // histograms giving weights applied to tracks, to smear the efficiency, vs pt vs run number 
    TList fTrueMultTrackCuts;            // cuts for MC tracks for determination of true multiplicity
    TList fLeg1PrefilterCuts;            // cuts for tracks used in the prefilter for LEG1  
    TList fLeg2PrefilterCuts;            // cuts for tracks used in the prefilter for LEG2
@@ -249,7 +280,7 @@ protected:
   UInt_t CheckDaughterMCTruth(AliReducedTrackInfo* daughter); 
 
    void FillMultiplicity(Bool_t regions = kFALSE, bool wrtPhiRef = kFALSE, float phiRef = -999.);
-   Int_t GetParticleWeight(AliReducedTrackInfo* track);
+   Float_t GetParticleWeight(AliReducedTrackInfo* track);
    Bool_t TrackIsCandidateLeg(AliReducedBaseTrack* track);
    void WriteFilteredPairs();
    void WriteFilteredTracks(Int_t array=1);

@@ -45,6 +45,7 @@ class AliReducedBaseEvent : public TObject {
      kIsMBTriggered,       // 16 - is MB triggered
      kIsHMTriggered,       // 17 - is HM triggered
      kIsHMSPDTriggered,    // 18 - is HM-SPD triggered
+     kIsTRDTriggered,      // 19 - is TRD triggered
      kNEventTagBits
   };
   
@@ -90,6 +91,7 @@ class AliReducedBaseEvent : public TObject {
   Int_t     NV0CandidatesTotal()              const {return fNV0candidates[0];}
   Int_t     NV0Candidates()                   const {return fNV0candidates[1];}
   Int_t     NPairs()                   const {return fCandidates->GetEntries();}
+  Int_t     V0Mult(Int_t i = 0)                   const {return (i >= 0 && i <= 2) ? fV0Mult[i] : 0.;}
   
   AliReducedBaseTrack* GetTrack(Int_t i) const {return (fTracks && i>=0 && i<fTracks->GetEntries() ? (AliReducedBaseTrack*)fTracks->At(i) : 0x0);}
   AliReducedBaseTrack* GetTrack2(Int_t i) const {return (fTracks2 && i>=0 && i<fTracks2->GetEntries() ? (AliReducedBaseTrack*)fTracks2->At(i) : 0x0);}
@@ -110,6 +112,8 @@ class AliReducedBaseEvent : public TObject {
    // set when running on the reduced tree, for the ith multiplicity estimator
   void SetLeadingParticle(float pt, float phi, float eta, Int_t icut) {fLeading[0+3*icut] = pt; fLeading[1+3*icut] = phi; fLeading[2+3*icut] = eta;}
    //set pt phi eta for the cutset i
+   // Set V0 mult with all corrections applied
+  void SetV0Mult(float v0M, float v0A, float v0C) {fV0Mult[0] = v0M; fV0Mult[1] = v0A; fV0Mult[2] = v0C;}
 
   virtual void ClearEvent();
   
@@ -119,6 +123,7 @@ class AliReducedBaseEvent : public TObject {
   Float_t   fVtx[3];                // global event vertex vector in cm
   Int_t     fNVtxContributors;      // global event vertex contributors
   Float_t   fCentrality[16];        // centrality; 0-V0M, 1-CL1, 2-TRK, 3-ZEMvsZDC, 4-V0A, 5-V0C, 6-ZNA, 7-VOMNew, 8-V0MNewPlus05, 9-V0MNewMinus05, 10-V0MNewPlus10, 11-V0MNewMinus10, 12-V0MPlus05, 13-V0MMinus05, 14-V0MPlus10, 15-V0MMinus10,
+  Float_t   fV0Mult[3];          // event: V0M/V0C/V0A corrected
   Int_t     fCentQuality;           // quality flag for the centrality 
   Int_t     fNtracks[2];            // number of tracks, [0]-total, [1]-selected for the tree
   Int_t     fNV0candidates[2];      // number of V0 candidates, [0]-total, [1]-selected for the tree
@@ -139,7 +144,7 @@ class AliReducedBaseEvent : public TObject {
   AliReducedBaseEvent& operator= (const AliReducedBaseEvent &c);
   AliReducedBaseEvent(const AliReducedBaseEvent &c);
 
-  ClassDef(AliReducedBaseEvent, 9);
+  ClassDef(AliReducedBaseEvent, 10);
 };
 
 #endif
